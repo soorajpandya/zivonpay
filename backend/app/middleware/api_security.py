@@ -17,6 +17,7 @@ Sandbox mode relaxes optional layers; production enforces them.
 Every rejection is logged to the security_audit_logs table.
 """
 
+import asyncio
 import hashlib
 import ipaddress
 import json
@@ -193,62 +194,90 @@ async def _log_security_event(
     extra_data: dict = None,
 ):
     """
-    Write a tamper-resistant security audit log entry with hash chain.
+    Log security event to application logs (fast, non-blocking)
+    and schedule async DB write for the tamper-resistant audit trail.
     """
+    # Always log immediately to application logs (instant)
+    log_data = {
+        "event_type": event_type,
+        "severity": severity,
+        "api_key_id": api_key_id,
+        "merchant_id": merchant_id,
+        "client_ip": client_ip,
+        "endpoint": endpoint,
+        "http_method": http_method,
+        "failure_reason": failure_reason,
+        "failure_layer": failure_layer,
+    }
+    if severity in ("critical", "high"):
+        logger.warning(f"Security event: {event_type}", extra=log_data)
+    else:
+        logger.info(f"Security event: {event_type}", extra=log_data)
+
+    # Fire-and-forget DB write (non-blocking)
+    asyncio.create_task(_write_audit_log_bg(
+        event_type=event_type, severity=severity,
+        api_key_id=api_key_id, merchant_id=merchant_id,
+        client_ip=client_ip, origin=origin, user_agent=user_agent,
+        http_method=http_method, endpoint=endpoint,
+        request_id=request_id, failure_reason=failure_reason,
+        failure_layer=failure_layer, device_fingerprint=device_fingerprint,
+        extra_data=extra_data,
+    ))
+
+
+async def _write_audit_log_bg(
+    event_type: str,
+    severity: str,
+    **kwargs,
+):
+    """Background task: write security event to DB with hash chain."""
     try:
-        # Get last hash for chain
-        result = await db.execute(
-            select(SecurityAuditLog.record_hash)
-            .order_by(SecurityAuditLog.created_at.desc())
-            .limit(1)
-        )
-        prev_hash = result.scalar_one_or_none() or "GENESIS"
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                select(SecurityAuditLog.record_hash)
+                .order_by(SecurityAuditLog.created_at.desc())
+                .limit(1)
+            )
+            prev_hash = result.scalar_one_or_none() or "GENESIS"
 
-        # Build record data for hashing
-        now = datetime.utcnow()
-        record_data = (
-            f"{event_type}|{severity}|{api_key_id}|{client_ip}|"
-            f"{endpoint}|{failure_reason}|{now.isoformat()}|{prev_hash}"
-        )
-        record_hash = hashlib.sha256(record_data.encode("utf-8")).hexdigest()
+            now = datetime.utcnow()
+            record_data = (
+                f"{event_type}|{severity}|{kwargs.get('api_key_id')}|"
+                f"{kwargs.get('client_ip')}|{kwargs.get('endpoint')}|"
+                f"{kwargs.get('failure_reason')}|{now.isoformat()}|{prev_hash}"
+            )
+            record_hash = hashlib.sha256(record_data.encode("utf-8")).hexdigest()
 
-        # Get next sequence
-        seq_result = await db.execute(
-            select(func.coalesce(func.max(SecurityAuditLog.sequence), 0) + 1)
-        )
-        next_seq = seq_result.scalar()
+            seq_result = await db.execute(
+                select(func.coalesce(func.max(SecurityAuditLog.sequence), 0) + 1)
+            )
+            next_seq = seq_result.scalar()
 
-        log_entry = SecurityAuditLog(
-            sequence=next_seq,
-            event_type=event_type,
-            severity=severity,
-            api_key_id=api_key_id,
-            merchant_id=merchant_id,
-            client_ip=client_ip,
-            origin=origin,
-            user_agent=user_agent,
-            http_method=http_method,
-            endpoint=endpoint,
-            request_id=request_id,
-            failure_reason=failure_reason,
-            failure_layer=failure_layer,
-            device_fingerprint=device_fingerprint,
-            extra_data=extra_data or {},
-            previous_hash=prev_hash if prev_hash != "GENESIS" else None,
-            record_hash=record_hash,
-            created_at=now,
-        )
-
-        db.add(log_entry)
-        await db.commit()
-
+            log_entry = SecurityAuditLog(
+                sequence=next_seq,
+                event_type=event_type,
+                severity=severity,
+                api_key_id=kwargs.get("api_key_id"),
+                merchant_id=kwargs.get("merchant_id"),
+                client_ip=kwargs.get("client_ip"),
+                origin=kwargs.get("origin"),
+                user_agent=kwargs.get("user_agent"),
+                http_method=kwargs.get("http_method"),
+                endpoint=kwargs.get("endpoint"),
+                request_id=kwargs.get("request_id"),
+                failure_reason=kwargs.get("failure_reason"),
+                failure_layer=kwargs.get("failure_layer"),
+                device_fingerprint=kwargs.get("device_fingerprint"),
+                extra_data=kwargs.get("extra_data") or {},
+                previous_hash=prev_hash if prev_hash != "GENESIS" else None,
+                record_hash=record_hash,
+                created_at=now,
+            )
+            db.add(log_entry)
+            await db.commit()
     except Exception as e:
         logger.error(f"Failed to write security audit log: {e}")
-        # Never let audit logging failure block the request pipeline
-        try:
-            await db.rollback()
-        except Exception:
-            pass
 
 
 def _error_response(code: str, message: str, status_code: int) -> JSONResponse:
