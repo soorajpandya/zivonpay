@@ -65,13 +65,16 @@ class SprintNXTService:
         Raises:
             UpstreamServiceError: If API call fails
         """
+        # Cap expiry time — SprintNXT limits max value
+        capped_expiry = min(expiry_time, 15)
+
         payload = {
             "apiId": self.api_id,
             "bankId": self.bank_id,
             "amount": f"{amount:.2f}",
             "payeeVPA": self.payee_vpa,
             "mobile": mobile,
-            "ExpiryTime": str(expiry_time),
+            "ExpiryTime": str(capped_expiry),
             "txnNote": transaction_note,
             "txnReferance": transaction_reference,  # Note: SprintNXT spelling
             "customer_name": customer_name,
@@ -103,7 +106,8 @@ class SprintNXTService:
                     f"SprintNXT response received",
                     extra={
                         "status_code": response.status_code,
-                        "transaction_reference": transaction_reference
+                        "transaction_reference": transaction_reference,
+                        "response_body": response_data
                     }
                 )
                 
