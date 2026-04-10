@@ -1,0 +1,26 @@
+{
+  "name": "@zivonpay/node-sdk",
+  "version": "1.0.0",
+  "description": "Official Node.js SDK for ZivonPay Payment Aggregator",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "lint": "eslint src/**/*.ts"
+  },
+  "keywords": ["zivonpay", "payment", "upi", "sdk"],
+  "author": "ZivonPay",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "axios-retry": "^3.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.0",
+    "eslint": "^8.55.0"
+  }
+}
