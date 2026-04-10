@@ -40,7 +40,11 @@ engine = create_async_engine(
         "prepared_statement_cache_size": 0,
         "prepared_statement_name_func": lambda: "",
     },
-    poolclass=NullPool,
+    poolclass=QueuePool,
+    pool_size=5,
+    max_overflow=5,
+    pool_pre_ping=True,
+    pool_recycle=300,
     isolation_level="AUTOCOMMIT",
 )
 
