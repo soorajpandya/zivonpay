@@ -960,9 +960,9 @@ function verifyWebhook(body, signature, secret) {{
 </div>
 
 <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px">
-  <a href="/v1/developer-docs/postman/collection" download="ZivonPay.postman_collection.json" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:{_ACCENT};color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">&#x2B07; Download Collection</a>
-  <a href="/v1/developer-docs/postman/sandbox" download="sandbox.postman_environment.json" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:transparent;color:{_ACCENT};border:1px solid {_ACCENT};border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">&#x2B07; Sandbox Environment</a>
-  <a href="/v1/developer-docs/postman/production" download="production.postman_environment.json" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:transparent;color:{_ACCENT};border:1px solid {_ACCENT};border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">&#x2B07; Production Environment</a>
+  <a href="/developer-docs/postman/collection" download="ZivonPay.postman_collection.json" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:{_ACCENT};color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">&#x2B07; Download Collection</a>
+  <a href="/developer-docs/postman/sandbox" download="sandbox.postman_environment.json" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:transparent;color:{_ACCENT};border:1px solid {_ACCENT};border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">&#x2B07; Sandbox Environment</a>
+  <a href="/developer-docs/postman/production" download="production.postman_environment.json" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:transparent;color:{_ACCENT};border:1px solid {_ACCENT};border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">&#x2B07; Production Environment</a>
 </div>
 </section>
 
