@@ -56,7 +56,8 @@ async def get_current_merchant(
         raise MissingAPIKeyError()
     
     # Determine if this is a sandbox or live key by prefix
-    is_live_key = key_id.startswith("key_live")
+    # Support both new (zp_live_) and legacy (key_live) prefixes
+    is_live_key = key_id.startswith("zp_live_") or key_id.startswith("key_live")
     
     # Query merchant by the appropriate key column
     if is_live_key:

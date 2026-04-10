@@ -64,8 +64,8 @@ class MerchantResponse(BaseModel):
     business_name: str = Field(..., description="Business name")
     email: str = Field(..., description="Business email")
     mobile: Optional[str] = Field(None, description="Mobile number")
-    api_key_id: str = Field(..., description="Sandbox API Key ID (key_test_*)")
-    live_api_key_id: Optional[str] = Field(None, description="Live API Key ID (key_live_*)")
+    api_key_id: str = Field(..., description="Sandbox API Key ID (zp_test_*)")
+    live_api_key_id: Optional[str] = Field(None, description="Live API Key ID (zp_live_*)")
     environment: str = Field(..., description="Environment (sandbox/production)")
     is_active: bool = Field(..., description="Account active status")
     is_verified: bool = Field(..., description="Account verification status")
@@ -80,8 +80,8 @@ class MerchantResponse(BaseModel):
                 "business_name": "My Business",
                 "email": "business@example.com",
                 "mobile": "+919876543210",
-                "api_key_id": "key_test_abc123",
-                "live_api_key_id": "key_live_xyz789",
+                "api_key_id": "zp_test_abc123",
+                "live_api_key_id": "zp_live_xyz789",
                 "environment": "sandbox",
                 "is_active": True,
                 "is_verified": False,
@@ -100,8 +100,8 @@ class APICredentials(BaseModel):
 class MerchantSignupResponse(BaseModel):
     """Response schema for merchant signup"""
     merchant: MerchantResponse
-    sandbox_credentials: APICredentials = Field(..., description="Sandbox API credentials (key_test_*)")
-    live_credentials: APICredentials = Field(..., description="Live API credentials (key_live_*)")
+    sandbox_credentials: APICredentials = Field(..., description="Sandbox API credentials (zp_test_*)")
+    live_credentials: APICredentials = Field(..., description="Live API credentials (zp_live_*)")
     webhook_secret: Optional[str] = Field(None, description="Webhook secret (store securely, shown only once)")
     auth: TokenResponse
     
@@ -112,19 +112,19 @@ class MerchantSignupResponse(BaseModel):
                     "id": "550e8400-e29b-41d4-a716-446655440000",
                     "business_name": "My Business",
                     "email": "business@example.com",
-                    "api_key_id": "key_test_abc123",
-                    "live_api_key_id": "key_live_xyz789",
+                    "api_key_id": "zp_test_abc123",
+                    "live_api_key_id": "zp_live_xyz789",
                     "environment": "sandbox",
                     "is_active": True,
                     "is_verified": False
                 },
                 "sandbox_credentials": {
-                    "key_id": "key_test_abc123",
-                    "key_secret": "sec_sandbox_keep_this_secret"
+                    "key_id": "zp_test_abc123",
+                    "key_secret": "zp_test_keep_this_secret"
                 },
                 "live_credentials": {
-                    "key_id": "key_live_xyz789",
-                    "key_secret": "sec_production_keep_this_secret"
+                    "key_id": "zp_live_xyz789",
+                    "key_secret": "zp_live_keep_this_secret"
                 },
                 "webhook_secret": "whsec_sandbox_abc123_keep_this_secret",
                 "auth": {

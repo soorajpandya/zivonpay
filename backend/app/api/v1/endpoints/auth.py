@@ -30,10 +30,10 @@ router = APIRouter()
 
 
 def generate_api_credentials(environment: str = "sandbox") -> tuple[str, str]:
-    """Generate API key ID and secret"""
-    prefix = "key_test" if environment == "sandbox" else "key_live"
+    """Generate API key ID and secret with zp_test_ / zp_live_ prefixes"""
+    prefix = "zp_test" if environment == "sandbox" else "zp_live"
     key_id = f"{prefix}_{secrets.token_urlsafe(16)}"
-    secret = f"sec_{environment}_{secrets.token_urlsafe(32)}"
+    secret = f"{prefix}_{secrets.token_urlsafe(32)}"
     return key_id, secret
 
 
