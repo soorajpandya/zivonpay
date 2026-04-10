@@ -94,6 +94,10 @@ async def ip_whitelist(request: Request, call_next):
     if settings.ENVIRONMENT != "production":
         return await call_next(request)
     
+    # Skip IP whitelist if no IPs configured (empty list means allow all)
+    if not settings.ALLOWED_IPS or settings.ALLOWED_IPS == [""]:
+        return await call_next(request)
+    
     client_ip = request.client.host if request.client else None
     
     if client_ip not in settings.ALLOWED_IPS:
