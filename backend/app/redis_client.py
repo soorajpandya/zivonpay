@@ -24,12 +24,15 @@ class RedisClient:
                 settings.REDIS_URL,
                 encoding="utf-8",
                 decode_responses=True,
-                max_connections=settings.REDIS_MAX_CONNECTIONS
+                max_connections=settings.REDIS_MAX_CONNECTIONS,
+                socket_connect_timeout=2,
+                socket_timeout=2,
             )
             await self.redis.ping()
             logger.info("Redis connected successfully")
         except Exception as e:
             logger.error(f"Redis connection failed: {e}")
+            self.redis = None
             raise
     
     async def disconnect(self):
