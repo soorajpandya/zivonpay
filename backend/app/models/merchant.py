@@ -31,9 +31,14 @@ class Merchant(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     mobile = Column(String(15))
     
-    # API Credentials
+    # API Credentials (Sandbox)
     api_key_id = Column(String(100), unique=True, nullable=False, index=True)
     api_secret_hash = Column(String(255), nullable=False)
+    
+    # API Credentials (Live/Production)
+    live_api_key_id = Column(String(100), unique=True, nullable=True, index=True)
+    live_api_secret_hash = Column(String(255), nullable=True)
+    
     webhook_url = Column(String)
     webhook_secret_hash = Column(String(255))
     

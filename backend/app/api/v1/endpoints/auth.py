@@ -16,7 +16,8 @@ from app.schemas.auth import (
     MerchantSignupResponse,
     MerchantLoginRequest,
     TokenResponse,
-    MerchantResponse
+    MerchantResponse,
+    APICredentials
 )
 from app.core.security import (
     hash_password,
@@ -75,9 +76,12 @@ async def signup(
             detail="Email already registered"
         )
     
-    # Generate API credentials
-    api_key_id, api_secret = generate_api_credentials(settings.ENVIRONMENT)
-    api_secret_hash = hash_password(api_secret)
+    # Generate BOTH sandbox and live API credentials
+    sandbox_key_id, sandbox_secret = generate_api_credentials("sandbox")
+    sandbox_secret_hash = hash_password(sandbox_secret)
+    
+    live_key_id, live_secret = generate_api_credentials("production")
+    live_secret_hash = hash_password(live_secret)
     
     # Generate webhook secret if URL provided
     webhook_secret = None
@@ -89,17 +93,19 @@ async def signup(
     # Hash password
     password_hash = hash_password(signup_data.password)
     
-    # Create merchant
+    # Create merchant with both sandbox and live keys
     merchant = Merchant(
         id=uuid.uuid4(),
         business_name=signup_data.business_name,
         email=signup_data.email,
         mobile=signup_data.mobile,
-        api_key_id=api_key_id,
-        api_secret_hash=api_secret_hash,
+        api_key_id=sandbox_key_id,
+        api_secret_hash=sandbox_secret_hash,
+        live_api_key_id=live_key_id,
+        live_api_secret_hash=live_secret_hash,
         webhook_url=signup_data.webhook_url,
         webhook_secret_hash=webhook_secret_hash,
-        environment=EnvironmentType(settings.ENVIRONMENT),
+        environment=EnvironmentType.SANDBOX,
         is_active=True,
         is_verified=False,
         extra_data={"password_hash": password_hash},
@@ -118,7 +124,14 @@ async def signup(
     
     return MerchantSignupResponse(
         merchant=MerchantResponse.model_validate(merchant),
-        api_secret=api_secret,
+        sandbox_credentials=APICredentials(
+            key_id=sandbox_key_id,
+            key_secret=sandbox_secret
+        ),
+        live_credentials=APICredentials(
+            key_id=live_key_id,
+            key_secret=live_secret
+        ),
         webhook_secret=webhook_secret,
         auth=TokenResponse(
             access_token=access_token,

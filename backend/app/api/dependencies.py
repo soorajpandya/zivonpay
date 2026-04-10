@@ -12,7 +12,7 @@ import base64
 from uuid import UUID
 
 from app.database import get_db
-from app.models.merchant import Merchant
+from app.models.merchant import Merchant, EnvironmentType
 from app.core.security import verify_password, verify_token
 from app.redis_client import redis_client
 from app.core.exceptions import (
@@ -55,11 +55,20 @@ async def get_current_merchant(
     if not key_id or not key_secret:
         raise MissingAPIKeyError()
     
-    # Query merchant by api_key_id
-    stmt = select(Merchant).where(
-        Merchant.api_key_id == key_id,
-        Merchant.is_active == True
-    )
+    # Determine if this is a sandbox or live key by prefix
+    is_live_key = key_id.startswith("key_live")
+    
+    # Query merchant by the appropriate key column
+    if is_live_key:
+        stmt = select(Merchant).where(
+            Merchant.live_api_key_id == key_id,
+            Merchant.is_active == True
+        )
+    else:
+        stmt = select(Merchant).where(
+            Merchant.api_key_id == key_id,
+            Merchant.is_active == True
+        )
     result = await db.execute(stmt)
     merchant = result.scalar_one_or_none()
     
@@ -67,10 +76,14 @@ async def get_current_merchant(
         logger.warning(f"Invalid API key attempt: {key_id}")
         raise InvalidAPIKeyError()
     
-    # Verify secret
-    if not verify_password(key_secret, merchant.api_secret_hash):
+    # Verify secret against the correct hash
+    secret_hash = merchant.live_api_secret_hash if is_live_key else merchant.api_secret_hash
+    if not secret_hash or not verify_password(key_secret, secret_hash):
         logger.warning(f"Invalid API secret for key: {key_id}")
         raise InvalidAPIKeyError()
+    
+    # Set environment based on which key was used
+    merchant.environment = EnvironmentType.PRODUCTION if is_live_key else EnvironmentType.SANDBOX
     
     # Update last active timestamp
     from datetime import datetime
@@ -181,16 +194,28 @@ async def get_optional_merchant(
         decoded = base64.b64decode(encoded).decode()
         key_id, key_secret = decoded.split(":", 1)
         
-        # Query merchant
-        stmt = select(Merchant).where(
-            Merchant.api_key_id == key_id,
-            Merchant.is_active == True
-        )
+        # Determine key type
+        is_live_key = key_id.startswith("key_live")
+        
+        # Query merchant by appropriate key column
+        if is_live_key:
+            stmt = select(Merchant).where(
+                Merchant.live_api_key_id == key_id,
+                Merchant.is_active == True
+            )
+        else:
+            stmt = select(Merchant).where(
+                Merchant.api_key_id == key_id,
+                Merchant.is_active == True
+            )
         result = await db.execute(stmt)
         merchant = result.scalar_one_or_none()
         
-        if merchant and verify_password(key_secret, merchant.api_secret_hash):
-            return merchant
+        if merchant:
+            secret_hash = merchant.live_api_secret_hash if is_live_key else merchant.api_secret_hash
+            if secret_hash and verify_password(key_secret, secret_hash):
+                merchant.environment = EnvironmentType.PRODUCTION if is_live_key else EnvironmentType.SANDBOX
+                return merchant
         
     except Exception as e:
         logger.debug(f"Optional auth failed: {e}")
