@@ -30,36 +30,37 @@ bearer_security = HTTPBearer()
 
 
 async def get_current_merchant(
+    request: Request,
     credentials: HTTPBasicCredentials = Depends(security),
     db: AsyncSession = Depends(get_db)
 ) -> Merchant:
     """
-    Authenticate merchant using HTTP Basic Auth
+    Authenticate merchant using HTTP Basic Auth.
+
+    If the security middleware already verified the merchant (stored on
+    request.state), reuse it to avoid a second DB lookup + bcrypt call.
     
     Format: Basic base64(key_id:key_secret)
-    
-    Args:
-        credentials: HTTP Basic credentials
-        db: Database session
-        
-    Returns:
-        Authenticated Merchant object
-        
-    Raises:
-        AuthenticationError: If authentication fails
     """
-    # Extract key_id and key_secret
+    # Fast path: reuse merchant verified by security middleware
+    cached = getattr(request.state, "merchant", None)
+    if cached is not None:
+        env = getattr(request.state, "merchant_environment", None)
+        if env:
+            cached.environment = env
+        # Merge into this session so lazy-loads work
+        cached = await db.merge(cached)
+        return cached
+
+    # Fallback: full auth (middleware may not run for all paths)
     key_id = credentials.username
     key_secret = credentials.password
     
     if not key_id or not key_secret:
         raise MissingAPIKeyError()
     
-    # Determine if this is a sandbox or live key by prefix
-    # Support both new (zp_live_) and legacy (key_live) prefixes
     is_live_key = key_id.startswith("zp_live_") or key_id.startswith("key_live")
     
-    # Query merchant by the appropriate key column
     if is_live_key:
         stmt = select(Merchant).where(
             Merchant.live_api_key_id == key_id,
@@ -77,28 +78,12 @@ async def get_current_merchant(
         logger.warning(f"Invalid API key attempt: {key_id}")
         raise InvalidAPIKeyError()
     
-    # Verify secret against the correct hash
     secret_hash = merchant.live_api_secret_hash if is_live_key else merchant.api_secret_hash
     if not secret_hash or not verify_password(key_secret, secret_hash):
         logger.warning(f"Invalid API secret for key: {key_id}")
         raise InvalidAPIKeyError()
     
-    # Set environment based on which key was used
     merchant.environment = EnvironmentType.PRODUCTION if is_live_key else EnvironmentType.SANDBOX
-    
-    # Update last active timestamp
-    from datetime import datetime
-    merchant.last_active_at = datetime.utcnow()
-    await db.commit()
-    
-    logger.info(
-        f"Merchant authenticated",
-        extra={
-            "merchant_id": str(merchant.id),
-            "business_name": merchant.business_name,
-            "environment": merchant.environment.value
-        }
-    )
     
     return merchant
 

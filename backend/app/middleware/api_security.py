@@ -672,16 +672,15 @@ async def api_security_middleware(request: Request, call_next):
                 # return _error_response("FORBIDDEN", "Unrecognized device", 403)
 
         # ────────────────────────────────────────────────────────
-        # ALL LAYERS PASSED — Log success & continue
+        # ALL LAYERS PASSED — Cache merchant on request.state
+        # so endpoint dependency can skip duplicate DB + bcrypt
         # ────────────────────────────────────────────────────────
         if merchant:
-            await _log_security_event(
-                db, "auth_success", "low",
-                api_key_id=api_key_id, client_ip=client_ip,
-                merchant_id=str(merchant.id),
-                origin=origin_domain, user_agent=user_agent,
-                http_method=method, endpoint=path,
-                request_id=request_id,
+            request.state.merchant = merchant
+            request.state.merchant_environment = (
+                EnvironmentType.PRODUCTION
+                if (key_id and (key_id.startswith("zp_live_") or key_id.startswith("key_live")))
+                else EnvironmentType.SANDBOX
             )
 
     # ── Forward to endpoint ──
