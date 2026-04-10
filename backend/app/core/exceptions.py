@@ -249,3 +249,44 @@ class DuplicateOrderError(ZivonPayException):
             source="validation",
             reason="duplicate_order_id",
         )
+
+
+# ── Security Layer Exceptions ──
+
+class ForbiddenError(ZivonPayException):
+    """Raised when request is forbidden (IP, domain, mTLS, replay)"""
+
+    def __init__(self, description: str = "Access denied", reason: str = "forbidden"):
+        super().__init__(
+            error_code="FORBIDDEN",
+            description=description,
+            status_code=status.HTTP_403_FORBIDDEN,
+            source="security",
+            reason=reason,
+        )
+
+
+class InvalidSignatureError(ZivonPayException):
+    """Raised when HMAC request signature is invalid"""
+
+    def __init__(self, description: str = "Invalid request signature"):
+        super().__init__(
+            error_code="INVALID_SIGNATURE",
+            description=description,
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            source="security",
+            reason="signature_mismatch",
+        )
+
+
+class ReplayAttackError(ZivonPayException):
+    """Raised when a replay attack is detected"""
+
+    def __init__(self):
+        super().__init__(
+            error_code="REPLAY_DETECTED",
+            description="Replay detected — duplicate request signature",
+            status_code=status.HTTP_403_FORBIDDEN,
+            source="security",
+            reason="replay_attack",
+        )

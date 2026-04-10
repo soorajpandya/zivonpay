@@ -7,3 +7,5 @@ from app.models.idempotency import IdempotencyKey
 from app.models.audit import AuditLog
 from app.models.api_key import APIKey
 from app.models.payment_intent import PaymentIntent
+from app.models.security_config import MerchantSecurityConfig
+from app.models.security_audit import SecurityAuditLog

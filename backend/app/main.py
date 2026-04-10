@@ -18,6 +18,7 @@ from app.redis_client import redis_client
 from app.core.logging import setup_logging
 from app.core.exceptions import ZivonPayException
 from app.api.v1 import api_router
+from app.middleware.api_security import api_security_middleware
 
 # Setup logging
 setup_logging()
@@ -87,7 +88,9 @@ app.add_middleware(
 )
 
 
-# IP Whitelist Middleware (production only)
+# IP Whitelist Middleware (production only — LEGACY, kept for backwards compat)
+# The new api_security_middleware handles per-merchant IP whitelisting.
+# This global whitelist still applies for infrastructure-level blocking.
 @app.middleware("http")
 async def ip_whitelist(request: Request, call_next):
     """Allow only whitelisted IPs (skipped in sandbox)"""
@@ -213,6 +216,13 @@ async def add_security_headers(request: Request, call_next):
         response.headers["Content-Security-Policy"] = "default-src 'self'"
     
     return response
+
+
+# 🔒 Multi-Layer API Security Middleware
+# Runs after request_id is assigned (middleware stack is LIFO in FastAPI).
+# Enforces: origin check → IP whitelist → mTLS → API key → HMAC signature
+#           → replay protection → rate limiting → device fingerprint
+app.middleware("http")(api_security_middleware)
 
 
 # Global Exception Handler
