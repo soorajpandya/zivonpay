@@ -70,6 +70,7 @@ app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     description="Production-grade Payment Aggregator Platform",
+    openapi_url="/openapi.json" if settings.ENVIRONMENT == "sandbox" or settings.DEBUG else None,
     docs_url="/docs" if settings.ENVIRONMENT == "sandbox" or settings.DEBUG else None,
     redoc_url="/redoc" if settings.ENVIRONMENT == "sandbox" or settings.DEBUG else None,
     lifespan=lifespan
