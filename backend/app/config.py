@@ -3,10 +3,21 @@ Configuration Management for ZivonPay Backend
 Handles environment variables and application settings
 """
 
+import os
 from typing import List, Optional, Union
 from pydantic_settings import BaseSettings
 from pydantic import Field, validator
 import secrets
+
+# Determine which .env file to load based on APP_ENV environment variable
+# Usage: APP_ENV=production python -m uvicorn ...
+# Defaults to "development" if not set
+_app_env = os.getenv("APP_ENV", "development")
+_env_file = f".env.{_app_env}"
+
+# Fall back to .env if the environment-specific file doesn't exist
+if not os.path.isfile(_env_file):
+    _env_file = ".env"
 
 
 class Settings(BaseSettings):
@@ -109,7 +120,7 @@ class Settings(BaseSettings):
         return v
     
     class Config:
-        env_file = ".env"
+        env_file = _env_file
         case_sensitive = True
 
 
