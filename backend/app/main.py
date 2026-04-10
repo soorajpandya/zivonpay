@@ -270,12 +270,7 @@ async def health_check():
 @app.get("/", tags=["Root"])
 async def root():
     """Root endpoint"""
-    return {
-        "service": "ZivonPay API",
-        "version": settings.APP_VERSION,
-        "environment": settings.ENVIRONMENT,
-        "docs": "/docs",
-    }
+    return {"message": "Welcome to ZivonPay API"}
 
 
 # Include API routers
