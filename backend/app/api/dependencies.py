@@ -196,7 +196,8 @@ async def get_optional_merchant(
         key_id, key_secret = decoded.split(":", 1)
         
         # Determine key type
-        is_live_key = key_id.startswith("key_live")
+        # Support both new (zp_live_) and legacy (key_live) prefixes
+        is_live_key = key_id.startswith("zp_live_") or key_id.startswith("key_live")
         
         # Query merchant by appropriate key column
         if is_live_key:
