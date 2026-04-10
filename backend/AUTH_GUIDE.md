@@ -123,6 +123,117 @@ curl -X GET http://localhost:8000/v1/orders \
 - **Token:** From login response (`access_token`)
 - **Expiry:** 1 hour (3600 seconds)
 
+### 3. HMAC Request Signing (Optional — Recommended for Production)
+
+When request signing is enabled for your merchant account, every API request must include two additional headers:
+
+| Header | Value |
+|--------|-------|
+| `x-timestamp` | Unix epoch in seconds (e.g. `1712764800`) |
+| `x-signature` | HMAC-SHA256 hex digest of the canonical string |
+
+**Canonical String Format:**
+```
+METHOD\nPATH\nSHA256(body)\nTIMESTAMP
+```
+
+**Example (Python):**
+```python
+import hashlib, hmac, time, json, requests
+
+SIGNING_SECRET = "zp_signing_test_xxxxxxxxxxxxxxxx"  # From Dashboard
+KEY_ID = "key_test_abc123"
+KEY_SECRET = "sec_test_xyz789_keep_this_secret"
+
+def sign_request(method: str, path: str, body: dict | None = None):
+    timestamp = str(int(time.time()))
+    body_str = json.dumps(body, separators=(',', ':')) if body else ''
+    body_hash = hashlib.sha256(body_str.encode()).hexdigest()
+
+    canonical = f"{method}\n{path}\n{body_hash}\n{timestamp}"
+    signature = hmac.new(
+        SIGNING_SECRET.encode(), canonical.encode(), hashlib.sha256
+    ).hexdigest()
+
+    return {'x-timestamp': timestamp, 'x-signature': signature}
+
+# Create signed order
+body = {"amount": 10000, "currency": "INR", "receipt": "order_001"}
+headers = sign_request("POST", "/v1/orders", body)
+
+resp = requests.post(
+    "https://api.zivonpay.com/v1/orders",
+    auth=(KEY_ID, KEY_SECRET),
+    headers={**headers, "Content-Type": "application/json"},
+    json=body,
+)
+```
+
+**Example (Node.js):**
+```javascript
+const crypto = require('crypto');
+
+function signRequest(method, path, body, signingSecret) {
+  const timestamp = Math.floor(Date.now() / 1000).toString();
+  const bodyStr = body ? JSON.stringify(body) : '';
+  const bodyHash = crypto.createHash('sha256').update(bodyStr).digest('hex');
+
+  const canonical = `${method}\n${path}\n${bodyHash}\n${timestamp}`;
+  const signature = crypto
+    .createHmac('sha256', signingSecret)
+    .update(canonical)
+    .digest('hex');
+
+  return { timestamp, signature };
+}
+```
+
+**Rules:**
+- Timestamp must be within **±5 minutes** of server time
+- Each signature can only be used **once** (replay protection)
+- Signing secret is provided when you enable request signing in the Dashboard
+
+## Multi-Layered Security
+
+ZivonPay supports 8 security layers, configurable per merchant:
+
+| # | Layer | Required Headers | Default |
+|---|-------|-----------------|---------|
+| 1 | Origin / Domain Check | `Origin` or `Referer` | Off |
+| 2 | IP Whitelist (CIDR) | `X-Real-IP` / `X-Forwarded-For` | Off |
+| 3 | mTLS Certificate | `X-Client-Cert-Subject` | Off |
+| 4 | API Key Auth (Basic) | `Authorization: Basic ...` | **Always On** |
+| 5 | HMAC-SHA256 Signing | `x-timestamp`, `x-signature` | Off |
+| 6 | Replay Protection | (uses x-signature) | Auto with signing |
+| 7 | Rate Limiting | — | On (per key + IP) |
+| 8 | Device Fingerprint | `x-device-id` (optional) | Off |
+
+Enable security layers in the Dashboard under **Settings → API Security**, or via the security config API.
+
+### IP Whitelisting
+
+Supports individual IPs and CIDR ranges:
+```json
+{
+  "enforce_ip_check": true,
+  "whitelisted_ips": ["203.0.113.0/24", "198.51.100.42"]
+}
+```
+
+### Domain Whitelisting
+
+Supports exact matches and wildcards:
+```json
+{
+  "enforce_domain_check": true,
+  "whitelisted_domains": ["*.mysite.com", "checkout.partner.com"]
+}
+```
+
+### Security Audit Log
+
+All security events (auth success, IP blocked, signature invalid, replay detected, etc.) are recorded in a tamper-resistant, hash-chained audit log. Each record's hash references the previous record, making the chain verifiable.
+
 ## API Documentation
 
 Once the server is running, access:

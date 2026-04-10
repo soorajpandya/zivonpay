@@ -2,7 +2,7 @@
   "info": {
     "name": "ZivonPay API",
     "_postman_id": "zivonpay-api-collection-v1",
-    "description": "Complete API collection for ZivonPay — UPI Payment Aggregator.\n\n## Getting Started\n1. Import this collection and one of the environment files (sandbox / production)\n2. Run the **Signup** request to get your API keys\n3. Your sandbox_key_id and sandbox_key_secret are auto-saved to the environment\n4. All endpoints use HTTP Basic Auth (key_id:key_secret) — injected automatically\n\n## Environments\n- **Sandbox** — test mode (zp_test_* keys), no real money\n- **Production** — live transactions (zp_live_* keys)",
+    "description": "Complete API collection for ZivonPay — UPI Payment Aggregator.\n\n## Getting Started\n1. Import this collection and one of the environment files (sandbox / production)\n2. Run the **Signup** request to get your API keys\n3. Your sandbox_key_id and sandbox_key_secret are auto-saved to the environment\n4. All endpoints use HTTP Basic Auth (key_id:key_secret) — injected automatically\n\n## HMAC Request Signing\nIf you have request signing enabled, set the `signing_secret` environment variable.\nThe pre-request script will automatically compute `x-timestamp` and `x-signature` headers.\n\n## Environments\n- **Sandbox** — test mode (zp_test_* keys), no real money\n- **Production** — live transactions (zp_live_* keys)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -29,6 +29,22 @@
           "// Auto-set Content-Type for POST/PUT requests",
           "if (pm.request.method === 'POST' || pm.request.method === 'PUT') {",
           "    pm.request.headers.upsert({ key: 'Content-Type', value: 'application/json' });",
+          "}",
+          "",
+          "// HMAC Request Signing (if signing_secret is set)",
+          "const signingSecret = pm.environment.get('signing_secret');",
+          "if (signingSecret) {",
+          "    const timestamp = Math.floor(Date.now() / 1000).toString();",
+          "    const method = pm.request.method;",
+          "    const url = new URL(pm.request.url.toString());",
+          "    const path = url.pathname;",
+          "    const body = pm.request.body ? pm.request.body.raw || '' : '';",
+          "    const bodyHash = CryptoJS.SHA256(body).toString();",
+          "    const canonical = method + '\\n' + path + '\\n' + bodyHash + '\\n' + timestamp;",
+          "    const signature = CryptoJS.HmacSHA256(canonical, signingSecret).toString();",
+          "    pm.request.headers.upsert({ key: 'x-timestamp', value: timestamp });",
+          "    pm.request.headers.upsert({ key: 'x-signature', value: signature });",
+          "    console.log('Request signed: ' + method + ' ' + path);",
           "}"
         ]
       }

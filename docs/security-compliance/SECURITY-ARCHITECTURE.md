@@ -1,7 +1,7 @@
 # ZivonPay Security Architecture
 
-**Version**: 1.0  
-**Last Updated**: 2024
+**Version**: 2.0  
+**Last Updated**: April 2026
 
 ---
 
@@ -51,9 +51,15 @@ ZivonPay is a Payment Aggregator platform that sits between merchants and the Sp
 │  │ ECS Fargate Tasks (Private Subnets)                        ││
 │  │ ┌──────────────────────────────────────────────────────┐  ││
 │  │ │ FastAPI Application                                   │  ││
+│  │ │ - Multi-Layer Security Middleware (8 layers)          │  ││
 │  │ │ - HTTP Basic Auth (bcrypt)                            │  ││
+│  │ │ - HMAC-SHA256 Request Signing                         │  ││
+│  │ │ - Replay Protection (Redis-backed)                    │  ││
+│  │ │ - IP/Domain Whitelisting (CIDR)                       │  ││
 │  │ │ - Request ID Middleware                               │  ││
-│  │ │ - Rate Limiting (Redis-backed)                        │  ││
+│  │ │ - Rate Limiting (Redis-backed, per key + IP)          │  ││
+│  │ │ - Device Fingerprinting                               │  ││
+│  │ │ - Hash-Chained Security Audit Logs                    │  ││
 │  │ │ - Structured JSON Logging                             │  ││
 │  │ │ - Exception Handlers                                  │  ││
 │  │ └──────────────────────────────────────────────────────┘  ││
@@ -282,6 +288,140 @@ async def get_order(
     
     return order
 ```
+
+---
+
+## 5.4 Multi-Layered API Security Middleware
+
+**Architecture**: Payment-grade, defense-in-depth security applied to all protected API routes via FastAPI middleware. Each layer is independently toggleable per merchant.
+
+**Processing Order** (fail-fast):
+```
+Request → Layer 1: Origin/Domain Check
+        → Layer 2: IP Whitelist (CIDR-aware)
+        → Layer 3: mTLS Certificate Validation
+        → Layer 4: API Key Authentication (Basic Auth)
+        → Layer 5: HMAC-SHA256 Request Signature
+        → Layer 6: Replay Attack Protection (Redis)
+        → Layer 7: Rate Limiting (per key + IP)
+        → Layer 8: Device Fingerprint Anomaly Detection
+        → Route Handler
+```
+
+### 5.4.1 HMAC Request Signing (Layer 5)
+
+**The critical security layer** — cryptographically proves request authenticity.
+
+**Canonical String**:
+```
+METHOD\nPATH\nSHA256(body)\nTIMESTAMP
+```
+
+**Implementation**:
+```python
+import hashlib, hmac
+
+def compute_request_signature(
+    signing_secret: str, method: str, path: str,
+    body: bytes, timestamp: str
+) -> str:
+    body_hash = hashlib.sha256(body).hexdigest()
+    canonical = f"{method}\n{path}\n{body_hash}\n{timestamp}"
+    return hmac.new(
+        signing_secret.encode(), canonical.encode(), hashlib.sha256
+    ).hexdigest()
+```
+
+**Verification**:
+- Constant-time comparison via `hmac.compare_digest()`
+- Timestamp tolerance: ±300 seconds (5 minutes)
+- Signing secret stored AES-256 encrypted (not hashed — server needs plaintext to recompute)
+
+### 5.4.2 Replay Protection (Layer 6)
+
+```python
+# Redis key: zp:replay:{signature_hex}
+# TTL: 600 seconds (10 minutes)
+# If key exists → reject as replay attack
+# If key absent → store and allow
+```
+
+### 5.4.3 IP/Domain Whitelisting (Layers 1-2)
+
+**IP Matching**: Supports individual IPs and CIDR ranges via Python `ipaddress` module.
+
+**Domain Matching**: Supports exact matches and wildcard patterns (`*.example.com`).
+
+**Proxy-Aware IP Extraction**:
+```
+Priority: X-Real-IP → X-Forwarded-For (first IP) → client.host
+```
+
+### 5.4.4 Device Fingerprinting (Layer 8)
+
+Fingerprint computed from:
+- User-Agent header
+- Client IP
+- Accept-Language header
+- Custom `x-device-id` header (optional)
+
+**Behavior**: Anomalies are **logged** (not blocked) by default. Creates a risk signal for monitoring.
+
+### 5.4.5 mTLS Support (Layer 3)
+
+Validated via proxy-terminated headers:
+- `X-Client-Cert-Subject`: Certificate subject from nginx/ALB
+- `X-Client-Cert-Verified`: Must be "SUCCESS"
+
+### 5.4.6 Security Audit Log
+
+**Hash-Chained, Append-Only Log**:
+```sql
+CREATE TABLE security_audit_logs (
+    id              UUID PRIMARY KEY,
+    sequence        SERIAL UNIQUE NOT NULL,
+    event_type      VARCHAR(50) NOT NULL,  -- auth_success, ip_blocked, replay_detected, etc.
+    severity        VARCHAR(10) NOT NULL,  -- low, medium, high, critical
+    api_key_id      VARCHAR(100),
+    merchant_id     VARCHAR(100),
+    client_ip       INET,
+    failure_reason  TEXT,
+    failure_layer   VARCHAR(50),
+    previous_hash   VARCHAR(64),           -- Hash of previous record
+    record_hash     VARCHAR(64) NOT NULL,  -- SHA256(sequence + event + timestamp + previous_hash)
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+**Tamper Detection**: Each record's hash incorporates the previous record's hash, forming an immutable chain. Any modification to historical records breaks the chain and is detectable.
+
+**Event Types**:
+- `auth_success` / `auth_failure`
+- `ip_blocked` / `domain_blocked`
+- `signature_invalid` / `replay_detected`
+- `rate_limited` / `device_anomaly` / `mtls_failure`
+
+### 5.4.7 Per-Merchant Security Configuration
+
+```sql
+CREATE TABLE merchant_security_configs (
+    merchant_id     UUID NOT NULL UNIQUE REFERENCES merchants(id),
+    enforce_domain_check        BOOLEAN DEFAULT false,
+    enforce_ip_check            BOOLEAN DEFAULT false,
+    enforce_request_signing     BOOLEAN DEFAULT false,
+    enforce_replay_protection   BOOLEAN DEFAULT true,
+    enforce_device_binding      BOOLEAN DEFAULT false,
+    enforce_mtls                BOOLEAN DEFAULT false,
+    whitelisted_domains         JSONB DEFAULT '[]',
+    whitelisted_ips             JSONB DEFAULT '[]',
+    signing_secret_hash         VARCHAR(255),  -- AES-256 encrypted
+    rate_limit_per_minute       VARCHAR(20),
+    known_device_fingerprints   JSONB DEFAULT '[]',
+    mtls_certificate_subject    VARCHAR(500)
+);
+```
+
+**Design Principle**: All optional layers default to **OFF** for existing merchants. Zero breaking changes on deployment. Layers are activated only when a merchant explicitly enables them.
 
 ---
 

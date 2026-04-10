@@ -2,7 +2,8 @@ import { motion } from "framer-motion";
 import {
   Code, Book, Zap, Shield, Globe2, Users, ArrowRight, Terminal, Copy, Check,
   ExternalLink, FileCode2, Webhook, TestTube2, Key, Braces, Lock, AlertTriangle,
-  Clock, Server, ChevronRight, ToggleLeft, ChevronDown, Hash, ArrowUpRight
+  Clock, Server, ChevronRight, ToggleLeft, ChevronDown, Hash, ArrowUpRight,
+  ShieldCheck, Fingerprint, Network
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
@@ -19,6 +20,7 @@ const envConfig = {
     keyPrefix: "zp_test_",
     sampleKey: "zp_test_aBcDeFgHiJkLmNoPqR",
     sampleSecret: "zp_secret_test_xxxxxxxxxxxxxxxx",
+    signingSecret: "zp_signing_test_xxxxxxxxxxxxxxxx",
     webhookSecret: "whsec_test_xxxxxxxxxxxxxxx",
     checkoutUrl: "https://sandbox.checkout.zivonpay.com/v1/checkout.js",
     dashboardUrl: "https://sandbox.dashboard.zivonpay.com",
@@ -33,6 +35,7 @@ const envConfig = {
     keyPrefix: "zp_live_",
     sampleKey: "zp_live_aBcDeFgHiJkLmNoPqR",
     sampleSecret: "zp_secret_live_xxxxxxxxxxxxxxxx",
+    signingSecret: "zp_signing_live_xxxxxxxxxxxxxxxx",
     webhookSecret: "whsec_live_xxxxxxxxxxxxxxx",
     checkoutUrl: "https://checkout.zivonpay.com/v1/checkout.js",
     dashboardUrl: "https://dashboard.zivonpay.com",
@@ -47,6 +50,7 @@ const envConfig = {
 const navSections = [
   { id: "getting-started", label: "Getting Started", icon: Zap },
   { id: "authentication", label: "Authentication", icon: Lock },
+  { id: "api-security", label: "API Security", icon: ShieldCheck },
   { id: "quick-start", label: "Quick Start", icon: Terminal },
   { id: "api-reference", label: "API Reference", icon: FileCode2 },
   { id: "webhooks", label: "Webhooks", icon: Webhook },
@@ -239,6 +243,79 @@ app.post('/webhooks/zivonpay', (req, res) => {
   res.status(200).json({ received: true });
 });`;
 
+const getSigningCodeNode = (env: EnvMode) => `const crypto = require('crypto');
+
+// Sign every API request with HMAC-SHA256
+function signRequest(method, path, body, signingSecret) {
+  const timestamp = Math.floor(Date.now() / 1000).toString();
+  const bodyStr = body ? JSON.stringify(body) : '';
+  const bodyHash = crypto.createHash('sha256').update(bodyStr).digest('hex');
+
+  // Canonical string: METHOD\\nPATH\\nBODY_HASH\\nTIMESTAMP
+  const canonical = \`\${method}\\n\${path}\\n\${bodyHash}\\n\${timestamp}\`;
+  const signature = crypto
+    .createHmac('sha256', signingSecret)
+    .update(canonical)
+    .digest('hex');
+
+  return { timestamp, signature };
+}
+
+// Usage — POST /v1/orders
+const body = { amount: 50000, currency: 'INR', receipt: 'order_1' };
+const { timestamp, signature } = signRequest(
+  'POST', '/v1/orders', body, '${envConfig[env].signingSecret}'
+);
+
+const response = await fetch('${envConfig[env].baseUrl}/v1/orders', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Basic ' + btoa(
+      '${envConfig[env].sampleKey}:${envConfig[env].sampleSecret}'
+    ),
+    'Content-Type': 'application/json',
+    'x-timestamp': timestamp,
+    'x-signature': signature,
+  },
+  body: JSON.stringify(body),
+});`;
+
+const getSigningCodePython = (env: EnvMode) => `import hashlib, hmac, time, json, requests
+from base64 import b64encode
+
+SIGNING_SECRET = '${envConfig[env].signingSecret}'
+KEY_ID = '${envConfig[env].sampleKey}'
+KEY_SECRET = '${envConfig[env].sampleSecret}'
+BASE_URL = '${envConfig[env].baseUrl}'
+
+def sign_request(method: str, path: str, body: dict | None = None):
+    timestamp = str(int(time.time()))
+    body_str = json.dumps(body, separators=(',', ':')) if body else ''
+    body_hash = hashlib.sha256(body_str.encode()).hexdigest()
+
+    canonical = f"{method}\\n{path}\\n{body_hash}\\n{timestamp}"
+    signature = hmac.new(
+        SIGNING_SECRET.encode(), canonical.encode(), hashlib.sha256
+    ).hexdigest()
+
+    return {
+        'x-timestamp': timestamp,
+        'x-signature': signature,
+    }
+
+# Create order with signed request
+body = {'amount': 50000, 'currency': 'INR', 'receipt': 'order_1'}
+headers = sign_request('POST', '/v1/orders', body)
+headers['Content-Type'] = 'application/json'
+
+resp = requests.post(
+    f'{BASE_URL}/v1/orders',
+    auth=(KEY_ID, KEY_SECRET),
+    headers=headers,
+    json=body,
+)
+print(resp.json())`;
+
 const getRefundCode = (env: EnvMode) => `// Full refund
 const refund = await zivonpay.payments.refund(
   'pay_EKwxwAgItmmXdp',
@@ -309,6 +386,11 @@ const errorCodes = [
   { code: "NOT_FOUND", status: 404, desc: "Requested resource does not exist.", action: "Verify the resource ID." },
   { code: "CONFLICT", status: 409, desc: "Duplicate request or conflicting state.", action: "Use idempotency keys." },
   { code: "RATE_LIMIT_EXCEEDED", status: 429, desc: "Too many requests in a given time window.", action: "Implement exponential backoff." },
+  { code: "SIGNATURE_INVALID", status: 401, desc: "HMAC request signature is missing or incorrect.", action: "Verify signing secret and canonical string format." },
+  { code: "SIGNATURE_EXPIRED", status: 401, desc: "Request timestamp is outside the ±5 min tolerance.", action: "Sync server clock and regenerate signature." },
+  { code: "REPLAY_DETECTED", status: 403, desc: "Duplicate request signature detected (replay attack).", action: "Generate a new signature per request." },
+  { code: "IP_BLOCKED", status: 403, desc: "Client IP is not in the merchant whitelist.", action: "Add your server IP in the Dashboard security settings." },
+  { code: "DOMAIN_BLOCKED", status: 403, desc: "Request origin is not in the merchant whitelist.", action: "Add your domain in the Dashboard security settings." },
   { code: "SERVER_ERROR", status: 500, desc: "Unexpected server error.", action: "Retry with backoff. Contact support if persistent." },
   { code: "GATEWAY_ERROR", status: 502, desc: "Bank or payment network error.", action: "Retry the transaction." },
   { code: "PAYMENT_FAILED", status: 400, desc: "Payment could not be processed.", action: "Check error_description for details." },
@@ -327,6 +409,8 @@ const rateLimits = [
 ];
 
 const changelog = [
+  { version: "v3.0.0", date: "Apr 2026", title: "Multi-Layered API Security", desc: "Payment-grade security: HMAC request signing, replay protection, IP/domain whitelisting, device fingerprinting, mTLS, and hash-chained audit logs.", type: "security" },
+  { version: "v2.9.1", date: "Mar 2026", title: "HTTP Basic Auth", desc: "All API endpoints switched to HTTP Basic Auth (key_id:key_secret) with automatic sandbox/production detection.", type: "security" },
   { version: "v2.9.0", date: "Feb 2026", title: "UPI AutoPay 2.0", desc: "Enhanced UPI recurring with mandate modifications and notifications.", type: "feature" },
   { version: "v2.8.0", date: "Jan 2026", title: "Instant Refunds", desc: "Process refunds to customer accounts within seconds.", type: "feature" },
   { version: "v2.7.2", date: "Dec 2025", title: "Webhook Retry Logic", desc: "Automatic retries with exponential backoff for failed webhook deliveries.", type: "improvement" },
@@ -696,6 +780,152 @@ const DeveloperGuidePage = () => {
                     <span className="font-semibold text-yellow-400">Security:</span> Never expose your <code className="text-xs">key_secret</code> in client-side code, version control, or logs. Use environment variables on your server.
                   </p>
                 </div>
+              </div>
+            </section>
+
+            <hr className="my-16 border-border/30" />
+
+            {/* ── API Security ── */}
+            <section id="api-security" className="scroll-mt-24">
+              <h2 className="text-2xl font-bold lg:text-3xl">API Security</h2>
+              <p className="mt-3 text-muted-foreground">
+                ZivonPay implements a multi-layered, payment-grade security architecture. Each layer adds defense-in-depth — but <strong className="text-foreground">HMAC request signing</strong> is the critical layer that cryptographically proves authenticity.
+              </p>
+
+              {/* Security Layers Overview */}
+              <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {[
+                  { icon: Lock, title: "Basic Auth", desc: "API key validation (required on all requests)", layer: "Layer 1", always: true },
+                  { icon: ShieldCheck, title: "HMAC Signing", desc: "Cryptographic request signature verification", layer: "Layer 2", always: false },
+                  { icon: Network, title: "IP Whitelist", desc: "Allow requests only from known server IPs", layer: "Layer 3", always: false },
+                  { icon: Fingerprint, title: "Replay Protection", desc: "Reject duplicate signatures via Redis", layer: "Layer 4", always: false },
+                ].map((layer) => (
+                  <div key={layer.title} className="rounded-xl border border-border/50 bg-card p-4 transition-all hover:border-primary/20" style={{ boxShadow: "var(--shadow-card)" }}>
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                        <layer.icon size={16} className="text-primary" />
+                      </div>
+                      <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">{layer.layer}</span>
+                      {layer.always && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">Always On</span>}
+                    </div>
+                    <h4 className="mt-3 font-semibold text-foreground">{layer.title}</h4>
+                    <p className="mt-1 text-xs text-muted-foreground">{layer.desc}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Full Security Layers Table */}
+              <div className="mt-8 overflow-hidden rounded-xl border border-border/50" style={{ boxShadow: "var(--shadow-card)" }}>
+                <div className="border-b border-border/30 bg-secondary/20 px-6 py-4">
+                  <h4 className="flex items-center gap-2 font-semibold text-foreground">
+                    <Shield size={16} className="text-primary" /> All Security Layers
+                  </h4>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border/50 bg-secondary/10">
+                        <th className="px-4 py-3 text-left font-semibold text-foreground">Layer</th>
+                        <th className="px-4 py-3 text-left font-semibold text-foreground">Mechanism</th>
+                        <th className="px-4 py-3 text-left font-semibold text-foreground">Required Headers</th>
+                        <th className="px-4 py-3 text-left font-semibold text-foreground">Default</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { layer: "1", name: "Origin / Domain Check", headers: "Origin or Referer", def: "Off" },
+                        { layer: "2", name: "IP Whitelist (CIDR)", headers: "X-Real-IP / X-Forwarded-For", def: "Off" },
+                        { layer: "3", name: "mTLS Certificate", headers: "X-Client-Cert-Subject", def: "Off" },
+                        { layer: "4", name: "API Key Auth", headers: "Authorization: Basic ...", def: "Always On" },
+                        { layer: "5", name: "HMAC-SHA256 Signing", headers: "x-timestamp, x-signature", def: "Off" },
+                        { layer: "6", name: "Replay Protection", headers: "(uses x-signature)", def: "Auto with signing" },
+                        { layer: "7", name: "Rate Limiting", headers: "—", def: "On (per key + IP)" },
+                        { layer: "8", name: "Device Fingerprint", headers: "x-device-id (optional)", def: "Off" },
+                      ].map((row) => (
+                        <tr key={row.layer} className="border-b border-border/20 transition-colors hover:bg-secondary/10">
+                          <td className="px-4 py-3 font-mono text-xs text-primary">{row.layer}</td>
+                          <td className="px-4 py-3 font-medium text-foreground">{row.name}</td>
+                          <td className="px-4 py-3"><code className="rounded bg-secondary/50 px-1.5 py-0.5 text-[11px] text-muted-foreground">{row.headers}</code></td>
+                          <td className="px-4 py-3">
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${row.def === "Always On" ? "bg-primary/10 text-primary" : row.def === "Off" ? "bg-secondary text-muted-foreground" : "bg-yellow-500/10 text-yellow-400"}`}>{row.def}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* HMAC Request Signing */}
+              <div className="mt-10">
+                <h3 className="text-lg font-semibold text-foreground">HMAC Request Signing</h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  When request signing is enabled, every API request must include two additional headers: <code className="rounded bg-secondary px-1.5 py-0.5 text-xs text-primary">x-timestamp</code> (Unix seconds) and <code className="rounded bg-secondary px-1.5 py-0.5 text-xs text-primary">x-signature</code> (HMAC-SHA256 hex digest).
+                </p>
+
+                <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-5">
+                  <h4 className="font-semibold text-foreground">Canonical String Format</h4>
+                  <code className="mt-2 block rounded bg-[hsl(216_28%_6%)] px-4 py-3 font-mono text-sm text-primary">
+                    METHOD\nPATH\nSHA256(request_body)\nTIMESTAMP
+                  </code>
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    The signature is computed as <code className="text-primary">HMAC-SHA256(signing_secret, canonical_string)</code>. Timestamps must be within <strong className="text-foreground">±5 minutes</strong> of server time. Each signature can only be used <strong className="text-foreground">once</strong> (replay protection).
+                  </p>
+                </div>
+
+                <div className="mt-6 space-y-4">
+                  <div>
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="rounded bg-yellow-500/10 px-2 py-0.5 text-[10px] font-semibold text-yellow-400">Node.js</span>
+                    </div>
+                    <CodeBlock code={getSigningCodeNode(env)} filename="sign-request.js" />
+                  </div>
+                  <div>
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="rounded bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold text-blue-400">Python</span>
+                    </div>
+                    <CodeBlock code={getSigningCodePython(env)} filename="sign-request.py" />
+                  </div>
+                </div>
+              </div>
+
+              {/* IP Whitelisting */}
+              <div className="mt-10">
+                <h3 className="text-lg font-semibold text-foreground">IP & Domain Whitelisting</h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Restrict API access to specific server IPs (supports CIDR notation) and origin domains (supports wildcards like <code className="rounded bg-secondary px-1.5 py-0.5 text-xs text-primary">*.example.com</code>). Configure via the Dashboard or API.
+                </p>
+                <div className="mt-4">
+                  <CodeBlock code={`// Security configuration per merchant
+{
+  "enforce_ip_check": true,
+  "whitelisted_ips": [
+    "203.0.113.0/24",      // Server subnet
+    "198.51.100.42"         // Specific IP
+  ],
+  "enforce_domain_check": true,
+  "whitelisted_domains": [
+    "*.mysite.com",         // Wildcard subdomain
+    "checkout.partner.com"  // Exact domain
+  ]
+}`} filename="security-config.json" />
+                </div>
+              </div>
+
+              {/* Security Best Practices */}
+              <div className="mt-10 rounded-xl border border-primary/20 bg-primary/5 p-6">
+                <h4 className="flex items-center gap-2 font-semibold text-foreground">
+                  <Shield size={16} className="text-primary" /> Security Best Practices
+                </h4>
+                <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+                  <li className="flex items-start gap-2"><Check size={14} className="mt-0.5 shrink-0 text-primary" /> Enable HMAC request signing for all production API keys</li>
+                  <li className="flex items-start gap-2"><Check size={14} className="mt-0.5 shrink-0 text-primary" /> Whitelist your server IPs — never call the API from client-side code</li>
+                  <li className="flex items-start gap-2"><Check size={14} className="mt-0.5 shrink-0 text-primary" /> Store <code className="text-xs text-primary">signing_secret</code> in environment variables, never in code</li>
+                  <li className="flex items-start gap-2"><Check size={14} className="mt-0.5 shrink-0 text-primary" /> Use NTP to keep server clocks in sync (±5 min tolerance)</li>
+                  <li className="flex items-start gap-2"><Check size={14} className="mt-0.5 shrink-0 text-primary" /> Generate a unique signature per request — do not cache or reuse</li>
+                  <li className="flex items-start gap-2"><Check size={14} className="mt-0.5 shrink-0 text-primary" /> Monitor the Security Audit Log for anomalies and blocked requests</li>
+                  <li className="flex items-start gap-2"><Check size={14} className="mt-0.5 shrink-0 text-primary" /> Rotate signing secrets periodically via the Dashboard</li>
+                </ul>
               </div>
             </section>
 
