@@ -4,9 +4,14 @@ Inspired by Razorpay / Stripe developer portals.
 """
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
+from pathlib import Path
+import os
 
 router = APIRouter()
+
+# Base path for postman files (repo_root/docs/postman)
+_POSTMAN_DIR = Path(__file__).resolve().parents[5] / "docs" / "postman"
 
 # ─── colour tokens ──────────────────────────────────────────────────────────
 _BG       = "#0a0e1a"
@@ -954,8 +959,10 @@ function verifyWebhook(body, signature, secret) {{
 </table>
 </div>
 
-<div class="info-box tip">
-  Download from the <code>/docs/postman/</code> directory in the <a href="https://github.com/soorajpandya/zivonpay" style="color:{_ACCENT}">GitHub repository</a>.
+<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px">
+  <a href="/v1/developer-docs/postman/collection" download="ZivonPay.postman_collection.json" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:{_ACCENT};color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">&#x2B07; Download Collection</a>
+  <a href="/v1/developer-docs/postman/sandbox" download="sandbox.postman_environment.json" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:transparent;color:{_ACCENT};border:1px solid {_ACCENT};border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">&#x2B07; Sandbox Environment</a>
+  <a href="/v1/developer-docs/postman/production" download="production.postman_environment.json" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:transparent;color:{_ACCENT};border:1px solid {_ACCENT};border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">&#x2B07; Production Environment</a>
 </div>
 </section>
 
@@ -966,7 +973,7 @@ function verifyWebhook(body, signature, secret) {{
   <tr><th>Language</th><th>Package</th><th>Status</th></tr>
   <tr><td>Python</td><td><code>pip install zivonpay</code></td><td><span class="status s2">Available</span></td></tr>
   <tr><td>Node.js</td><td><code>npm install zivonpay</code></td><td><span class="status s2">Available</span></td></tr>
-  <tr><td>Go</td><td><code>go get github.com/soorajpandya/zivonpay</code></td><td><span class="status s2">Available</span></td></tr>
+  <tr><td>Go</td><td><code>go get zivonpay.com/sdk/go</code></td><td><span class="status s2">Available</span></td></tr>
   <tr><td>PHP</td><td><code>composer require zivonpay/zivonpay</code></td><td><span class="status s2">Available</span></td></tr>
   <tr><td>Java</td><td>Maven: <code>com.zivonpay:zivonpay-java</code></td><td><span class="status s2">Available</span></td></tr>
 </table>
@@ -975,7 +982,7 @@ function verifyWebhook(body, signature, secret) {{
 
 <div style="text-align:center;padding:60px 0 20px;color:{_MUTED};font-size:13px">
   &copy; 2026 ZivonPay &middot; v1.0.0 &middot;
-  <a href="https://github.com/soorajpandya/zivonpay" style="color:{_ACCENT};text-decoration:none">GitHub</a>
+  <a href="https://zivonpay.com" style="color:{_ACCENT};text-decoration:none">zivonpay.com</a>
 </div>
 
 </main>
@@ -1028,3 +1035,25 @@ function setEnv(env){{
 async def developer_docs(request: Request):
     """Serve the developer documentation page"""
     return HTMLResponse(content=_docs_page())
+
+
+_POSTMAN_FILES = {
+    "collection": "ZivonPay.postman_collection.json",
+    "sandbox": "sandbox.postman_environment.json",
+    "production": "production.postman_environment.json",
+}
+
+
+@router.get("/postman/{file_type}", include_in_schema=False)
+async def download_postman_file(file_type: str):
+    """Download Postman collection or environment files"""
+    if file_type not in _POSTMAN_FILES:
+        return HTMLResponse(content="Not found", status_code=404)
+    file_path = _POSTMAN_DIR / _POSTMAN_FILES[file_type]
+    if not file_path.is_file():
+        return HTMLResponse(content="File not found", status_code=404)
+    return FileResponse(
+        path=str(file_path),
+        filename=_POSTMAN_FILES[file_type],
+        media_type="application/json",
+    )

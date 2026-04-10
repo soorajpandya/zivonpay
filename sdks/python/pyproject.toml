@@ -5,25 +5,26 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "zivonpay"
 version = "1.0.0"
-description = "Official Python SDK for ZivonPay Payment Aggregator"
+description = "Official Python SDK for ZivonPay Payment Aggregator — UPI payments, orders, refunds, webhooks"
 authors = [{name = "ZivonPay", email = "support@zivonpay.com"}]
-license = {text = "MIT"}
+license = "MIT"
 readme = "README.md"
 requires-python = ">=3.8"
-keywords = ["zivonpay", "payment", "upi", "sdk"]
+keywords = ["zivonpay", "payment", "upi", "sdk", "payment-gateway", "india", "fintech"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Office/Business :: Financial",
 ]
 dependencies = [
-    "requests>=2.31.0",
-    "requests-toolbelt>=1.0.0",
+    "requests>=2.28.0",
 ]
 
 [project.optional-dependencies]
@@ -31,5 +32,6 @@ dev = ["pytest>=7.4.0", "black>=23.0.0", "mypy>=1.0.0"]
 
 [project.urls]
 Homepage = "https://zivonpay.com"
-Documentation = "https://docs.zivonpay.com"
-Repository = "https://github.com/zivonpay/python-sdk"
+Documentation = "https://zivonpay.com/developer-docs"
+Repository = "https://github.com/soorajpandya/zivonpay"
+"Bug Tracker" = "https://github.com/soorajpandya/zivonpay/issues"

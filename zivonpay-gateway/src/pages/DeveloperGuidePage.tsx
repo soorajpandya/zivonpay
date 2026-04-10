@@ -71,7 +71,7 @@ const getInstallCodes = () => ({
   <artifactId>zivonpay-java</artifactId>
   <version>1.3.12</version>
 </dependency>`,
-  Go: "go get github.com/zivonpay/zivonpay-go",
+  Go: "go get zivonpay.com/sdk/go",
   Ruby: "gem install zivonpay",
 });
 
@@ -354,7 +354,7 @@ const sdks = [
   { name: "Python", pkg: "zivonpay", version: "1.4.2", install: "pip install zivonpay" },
   { name: "PHP", pkg: "zivonpay/zivonpay-php", version: "2.8.1", install: "composer require zivonpay/zivonpay-php" },
   { name: "Java", pkg: "com.zivonpay:zivonpay-java", version: "1.3.12", install: "Maven / Gradle" },
-  { name: "Go", pkg: "zivonpay-go", version: "1.0.7", install: "go get github.com/zivonpay/zivonpay-go" },
+  { name: "Go", pkg: "zivonpay-go", version: "1.0.7", install: "go get zivonpay.com/sdk/go" },
   { name: "React Native", pkg: "@zivonpay/react-native", version: "2.5.0", install: "npm install @zivonpay/react-native" },
   { name: "Flutter", pkg: "zivonpay_flutter", version: "1.1.4", install: "flutter pub add zivonpay_flutter" },
   { name: "Ruby", pkg: "zivonpay", version: "3.0.3", install: "gem install zivonpay" },
@@ -1147,7 +1147,7 @@ options.put("currency", "INR");
 options.put("receipt", "order_1");
 
 Order order = client.orders.create(options);`,
-                  Go: `import "github.com/zivonpay/zivonpay-go"
+                  Go: `import "zivonpay.com/sdk/go"
 
 client := zivonpay.NewClient(
     "${config.sampleKey}",
@@ -1602,9 +1602,11 @@ async function apiCallWithRetry(fn, maxRetries = 3) {
                 <Button variant="outline" className="gap-2 border-border text-foreground hover:bg-secondary">
                   <Book size={16} /> Integration Guides
                 </Button>
-                <Button variant="outline" className="gap-2 border-border text-foreground hover:bg-secondary">
-                  <Globe2 size={16} /> Postman Collection
-                </Button>
+                <a href="https://api.zivonpay.com/v1/developer-docs/postman/collection" download="ZivonPay.postman_collection.json" target="_blank" rel="noopener noreferrer">
+                  <Button variant="outline" className="gap-2 border-border text-foreground hover:bg-secondary">
+                    <Globe2 size={16} /> Download Postman Collection
+                  </Button>
+                </a>
               </div>
             </div>
           </main>
