@@ -7,7 +7,7 @@ from typing import Optional
 import logging
 
 from app.models.merchant import Merchant
-from app.api.dependencies import get_current_merchant_jwt
+from app.api.dependencies import get_current_merchant
 from app.schemas.logs import AppLogListResponse, AppLogResponse
 from app.services.log_buffer import log_buffer
 
@@ -28,14 +28,14 @@ async def list_logs(
     level: Optional[str] = Query(None, description="Filter by log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)"),
     logger_name: Optional[str] = Query(None, alias="logger", description="Filter by logger name (substring match)"),
     search: Optional[str] = Query(None, description="Full-text search in message, request_id, merchant_id"),
-    merchant: Merchant = Depends(get_current_merchant_jwt),
+    merchant: Merchant = Depends(get_current_merchant),
 ):
     """
     View recent application logs from the in-memory ring buffer.
 
     The buffer stores the last 5 000 log entries. Logs are returned newest-first.
 
-    **Authentication**: Required (Bearer JWT token)
+    **Authentication**: Required (HTTP Basic — key_id:key_secret)
 
     **Filters**: level, logger, search
     """

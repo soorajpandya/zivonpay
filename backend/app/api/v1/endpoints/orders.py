@@ -12,7 +12,7 @@ import qrcode
 
 from app.database import get_db
 from app.models.merchant import Merchant
-from app.api.dependencies import get_current_merchant, get_current_merchant_jwt
+from app.api.dependencies import get_current_merchant
 from app.schemas.order import OrderCreate, OrderResponse, OrderListResponse
 from app.services.order import order_service
 from app.core.exceptions import OrderNotFoundError, ValidationError
@@ -32,14 +32,14 @@ router = APIRouter()
 )
 async def create_order(
     order_data: OrderCreate,
-    merchant: Merchant = Depends(get_current_merchant_jwt),
+    merchant: Merchant = Depends(get_current_merchant),
     db: AsyncSession = Depends(get_db),
     x_idempotency_key: Optional[str] = Header(None, alias="X-Idempotency-Key")
 ):
     """
     Create a new order with UPI payment intent.
     
-    **Authentication**: Required (Bearer JWT token)
+    **Authentication**: Required (HTTP Basic — key_id:key_secret)
     
     **Rate Limit**: 1000 requests/minute
     
@@ -71,13 +71,13 @@ async def create_order(
 )
 async def get_order(
     order_id: UUID,
-    merchant: Merchant = Depends(get_current_merchant_jwt),
+    merchant: Merchant = Depends(get_current_merchant),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Fetch order details by ID and check latest status from upstream.
     
-    **Authentication**: Required (Bearer JWT token)
+    **Authentication**: Required (HTTP Basic — key_id:key_secret)
     
     **Rate Limit**: 5000 requests/minute
     """
@@ -105,13 +105,13 @@ async def get_order(
 async def list_orders(
     skip: int = 0,
     limit: int = 10,
-    merchant: Merchant = Depends(get_current_merchant_jwt),
+    merchant: Merchant = Depends(get_current_merchant),
     db: AsyncSession = Depends(get_db)
 ):
     """
     List orders for the authenticated merchant.
     
-    **Authentication**: Required (Bearer JWT token)
+    **Authentication**: Required (HTTP Basic — key_id:key_secret)
     
     **Pagination**: Use skip and limit parameters
     """
@@ -149,13 +149,13 @@ async def list_orders(
 )
 async def get_order_qr(
     order_id: UUID,
-    merchant: Merchant = Depends(get_current_merchant_jwt),
+    merchant: Merchant = Depends(get_current_merchant),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Get QR code PNG image for the order's UPI intent URL.
     
-    **Authentication**: Required (Bearer JWT token)
+    **Authentication**: Required (HTTP Basic — key_id:key_secret)
     """
     order = await order_service.get_order(merchant, order_id, db)
     

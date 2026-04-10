@@ -218,20 +218,42 @@ p{{margin-bottom:14px;color:{_MUTED};font-size:15px}}
 <!-- ── Authentication ── -->
 <section id="authentication">
 <h2>Authentication</h2>
-<p>ZivonPay supports two authentication methods:</p>
+<p>All API requests are authenticated using <strong>HTTP Basic Auth</strong> with your API key ID and secret. The key prefix determines the environment (sandbox vs production).</p>
 
-<h3>1. JWT Bearer Token (recommended)</h3>
-<p>Login with email/password to receive a JWT token. Use it in all subsequent requests.</p>
-<div class="code-block">
-<button class="copy-btn" onclick="copyCode(this)">Copy</button>
-<pre>Authorization: Bearer eyJhbGciOiJIUzI1NiIs...</pre>
+<h3>HTTP Basic Auth (key_id : key_secret)</h3>
+<p>Pass your <code>key_id</code> as the username and <code>key_secret</code> as the password via HTTP Basic authentication.</p>
+
+<div class="info-box tip">
+  <strong>Sandbox keys</strong> (<code>zp_test_*</code>) &rarr; mock UPI, no real money charged<br>
+  <strong>Live keys</strong> (<code>zp_live_*</code>) &rarr; real transactions on production
 </div>
 
-<h3>2. HTTP Basic Auth (API Keys)</h3>
-<p>Base64 encode <code>key_id:key_secret</code> and pass as Basic auth. The key prefix determines the environment.</p>
+<div class="code-tabs">
+  <button class="code-tab active" onclick="switchTab(this,'auth-curl')">cURL</button>
+  <button class="code-tab" onclick="switchTab(this,'auth-js')">JavaScript</button>
+  <button class="code-tab" onclick="switchTab(this,'auth-py')">Python</button>
+</div>
 <div class="code-block">
 <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-<pre>Authorization: Basic base64(zp_test_xxx:zp_test_yyy)</pre>
+<pre id="auth-curl"># cURL uses the -u flag for Basic auth
+curl https://api.zivonpay.com/v1/orders \\
+  -u "zp_test_yourKeyId:zp_test_yourKeySecret"</pre>
+<pre id="auth-js" style="display:none">// JavaScript — encode key_id:key_secret as Base64
+const credentials = btoa("zp_test_yourKeyId:zp_test_yourKeySecret");
+fetch("https://api.zivonpay.com/v1/orders", {{
+  headers: {{ "Authorization": `Basic ${{credentials}}` }}
+}});</pre>
+<pre id="auth-py" style="display:none"># Python requests supports auth= tuple natively
+import requests
+
+resp = requests.get(
+    "https://api.zivonpay.com/v1/orders",
+    auth=("zp_test_yourKeyId", "zp_test_yourKeySecret")
+)</pre>
+</div>
+
+<div class="info-box warn">
+  <strong>Keep your key_secret safe.</strong> It is shown only once at signup. Never expose it in client-side code or version control.
 </div>
 </section>
 
@@ -473,7 +495,7 @@ token = resp.json()["access_token"]</pre>
   <h3>Headers</h3>
   <table class="param-table">
     <tr><th>Header</th><th>Required</th><th>Description</th></tr>
-    <tr><td><code>Authorization</code></td><td class="req">Yes</td><td><code>Bearer &lt;jwt_token&gt;</code></td></tr>
+    <tr><td><code>Authorization</code></td><td class="req">Yes</td><td><code>Basic base64(key_id:key_secret)</code></td></tr>
     <tr><td><code>X-Idempotency-Key</code></td><td class="opt">No</td><td>Unique key to prevent duplicate orders</td></tr>
   </table>
 
@@ -497,7 +519,7 @@ token = resp.json()["access_token"]</pre>
   <div class="code-block">
     <button class="copy-btn" onclick="copyCode(this)">Copy</button>
     <pre id="create-order-curl">curl -X POST https://api.zivonpay.com/v1/orders \\
-  -H "Authorization: Bearer eyJhbGci..." \\
+  -u "zp_test_yourKeyId:zp_test_yourKeySecret" \\
   -H "Content-Type: application/json" \\
   -H "X-Idempotency-Key: order_123_v1" \\
   -d '{{
@@ -513,10 +535,14 @@ token = resp.json()["access_token"]</pre>
       "plan": "Premium Monthly"
     }}
   }}'</pre>
-    <pre id="create-order-js" style="display:none">const res = await fetch("https://api.zivonpay.com/v1/orders", {{
+    <pre id="create-order-js" style="display:none">const keyId = "zp_test_yourKeyId";
+const keySecret = "zp_test_yourKeySecret";
+const credentials = btoa(`${{keyId}}:${{keySecret}}`);
+
+const res = await fetch("https://api.zivonpay.com/v1/orders", {{
   method: "POST",
   headers: {{
-    "Authorization": `Bearer ${{token}}`,
+    "Authorization": `Basic ${{credentials}}`,
     "Content-Type": "application/json",
     "X-Idempotency-Key": "order_123_v1"
   }},
@@ -535,10 +561,8 @@ const order = await res.json();</pre>
 
 resp = requests.post(
     "https://api.zivonpay.com/v1/orders",
-    headers={{
-        "Authorization": f"Bearer {{token}}",
-        "X-Idempotency-Key": "order_123_v1"
-    }},
+    auth=("zp_test_yourKeyId", "zp_test_yourKeySecret"),
+    headers={{"X-Idempotency-Key": "order_123_v1"}},
     json={{
         "amount": 50000,
         "currency": "INR",
@@ -588,15 +612,16 @@ order = resp.json()</pre>
   <div class="code-block">
     <button class="copy-btn" onclick="copyCode(this)">Copy</button>
     <pre id="get-order-curl">curl https://api.zivonpay.com/v1/orders/550e8400-e29b-41d4-a716-446655440000 \\
-  -H "Authorization: Bearer eyJhbGci..."</pre>
-    <pre id="get-order-js" style="display:none">const res = await fetch(
+  -u "zp_test_yourKeyId:zp_test_yourKeySecret"</pre>
+    <pre id="get-order-js" style="display:none">const credentials = btoa("zp_test_yourKeyId:zp_test_yourKeySecret");
+const res = await fetch(
   `https://api.zivonpay.com/v1/orders/${{orderId}}`,
-  {{ headers: {{ "Authorization": `Bearer ${{token}}` }} }}
+  {{ headers: {{ "Authorization": `Basic ${{credentials}}` }} }}
 );
 const order = await res.json();</pre>
     <pre id="get-order-py" style="display:none">resp = requests.get(
     f"https://api.zivonpay.com/v1/orders/{{order_id}}",
-    headers={{"Authorization": f"Bearer {{token}}"}}
+    auth=("zp_test_yourKeyId", "zp_test_yourKeySecret")
 )
 order = resp.json()</pre>
   </div>
@@ -617,10 +642,10 @@ order = resp.json()</pre>
   <div class="code-block">
     <button class="copy-btn" onclick="copyCode(this)">Copy</button>
     <pre id="list-orders-curl">curl "https://api.zivonpay.com/v1/orders?skip=0&limit=20" \\
-  -H "Authorization: Bearer eyJhbGci..."</pre>
+  -u "zp_test_yourKeyId:zp_test_yourKeySecret"</pre>
     <pre id="list-orders-py" style="display:none">resp = requests.get(
     "https://api.zivonpay.com/v1/orders",
-    headers={{"Authorization": f"Bearer {{token}}"}},
+    auth=("zp_test_yourKeyId", "zp_test_yourKeySecret"),
     params={{"skip": 0, "limit": 20}}
 )
 orders = resp.json()</pre>
@@ -657,10 +682,10 @@ orders = resp.json()</pre>
   <div class="code-block">
     <button class="copy-btn" onclick="copyCode(this)">Copy</button>
     <pre id="get-pay-curl">curl https://api.zivonpay.com/v1/payments/660e8400-e29b-41d4-a716-446655440000 \\
-  -H "Authorization: Bearer eyJhbGci..."</pre>
+  -u "zp_test_yourKeyId:zp_test_yourKeySecret"</pre>
     <pre id="get-pay-py" style="display:none">resp = requests.get(
     f"https://api.zivonpay.com/v1/payments/{{payment_id}}",
-    headers={{"Authorization": f"Bearer {{token}}"}}
+    auth=("zp_test_yourKeyId", "zp_test_yourKeySecret")
 )
 payment = resp.json()</pre>
   </div>
@@ -701,7 +726,7 @@ payment = resp.json()</pre>
   <div class="code-block">
     <button class="copy-btn" onclick="copyCode(this)">Copy</button>
     <pre id="list-pay-curl">curl "https://api.zivonpay.com/v1/payments?skip=0&limit=20" \\
-  -H "Authorization: Bearer eyJhbGci..."</pre>
+  -u "zp_test_yourKeyId:zp_test_yourKeySecret"</pre>
   </div>
 </div>
 </section>
@@ -718,7 +743,7 @@ payment = resp.json()</pre>
   <h3>Headers</h3>
   <table class="param-table">
     <tr><th>Header</th><th>Required</th><th>Description</th></tr>
-    <tr><td><code>Authorization</code></td><td class="req">Yes</td><td><code>Bearer &lt;jwt_token&gt;</code></td></tr>
+    <tr><td><code>Authorization</code></td><td class="req">Yes</td><td><code>Basic base64(key_id:key_secret)</code></td></tr>
     <tr><td><code>X-Idempotency-Key</code></td><td class="opt">No</td><td>Unique key to prevent duplicates</td></tr>
   </table>
 
@@ -743,7 +768,7 @@ payment = resp.json()</pre>
   <div class="code-block">
     <button class="copy-btn" onclick="copyCode(this)">Copy</button>
     <pre id="create-intent-curl">curl -X POST https://api.zivonpay.com/v1/payment-intent \\
-  -H "Authorization: Bearer eyJhbGci..." \\
+  -u "zp_test_yourKeyId:zp_test_yourKeySecret" \\
   -H "Content-Type: application/json" \\
   -d '{{
     "amount": 100000,
@@ -752,10 +777,11 @@ payment = resp.json()</pre>
     "customer_phone": "9999999999",
     "expiry_minutes": 30
   }}'</pre>
-    <pre id="create-intent-js" style="display:none">const res = await fetch("https://api.zivonpay.com/v1/payment-intent", {{
+    <pre id="create-intent-js" style="display:none">const credentials = btoa("zp_test_yourKeyId:zp_test_yourKeySecret");
+const res = await fetch("https://api.zivonpay.com/v1/payment-intent", {{
   method: "POST",
   headers: {{
-    "Authorization": `Bearer ${{token}}`,
+    "Authorization": `Basic ${{credentials}}`,
     "Content-Type": "application/json"
   }},
   body: JSON.stringify({{
@@ -769,7 +795,7 @@ payment = resp.json()</pre>
 const intent = await res.json();</pre>
     <pre id="create-intent-py" style="display:none">resp = requests.post(
     "https://api.zivonpay.com/v1/payment-intent",
-    headers={{"Authorization": f"Bearer {{token}}"}},
+    auth=("zp_test_yourKeyId", "zp_test_yourKeySecret"),
     json={{
         "amount": 100000,
         "order_id": "ORD_789",
@@ -817,7 +843,7 @@ intent = resp.json()</pre>
   <div class="code-block">
     <button class="copy-btn" onclick="copyCode(this)">Copy</button>
     <pre id="get-intent-curl">curl https://api.zivonpay.com/v1/payment-intent/pi_a1b2c3d4e5f6 \\
-  -H "Authorization: Bearer eyJhbGci..."</pre>
+  -u "zp_test_yourKeyId:zp_test_yourKeySecret"</pre>
   </div>
 </div>
 </section>
@@ -835,7 +861,7 @@ intent = resp.json()</pre>
   <div class="code-block">
     <button class="copy-btn" onclick="copyCode(this)">Copy</button>
     <pre id="list-intent-curl">curl "https://api.zivonpay.com/v1/payment-intent?skip=0&limit=20" \\
-  -H "Authorization: Bearer eyJhbGci..."</pre>
+  -u "zp_test_yourKeyId:zp_test_yourKeySecret"</pre>
   </div>
 </div>
 </section>

@@ -10,7 +10,7 @@ import logging
 
 from app.database import get_db
 from app.models.merchant import Merchant
-from app.api.dependencies import get_current_merchant_jwt
+from app.api.dependencies import get_current_merchant
 from app.schemas.payment_intent import (
     PaymentIntentCreate,
     PaymentIntentResponse,
@@ -35,14 +35,14 @@ router = APIRouter()
 )
 async def create_payment_intent(
     data: PaymentIntentCreate,
-    merchant: Merchant = Depends(get_current_merchant_jwt),
+    merchant: Merchant = Depends(get_current_merchant),
     db: AsyncSession = Depends(get_db),
     x_idempotency_key: Optional[str] = Header(None, alias="X-Idempotency-Key"),
 ):
     """
     Create a new Payment Intent and receive a signed payment link.
 
-    **Authentication**: Required (Bearer JWT token)
+    **Authentication**: Required (HTTP Basic — key_id:key_secret)
 
     **Idempotency**: Requests with the same `order_id` return the
     existing intent if it has not expired or failed.
@@ -70,13 +70,13 @@ async def create_payment_intent(
 )
 async def get_payment_intent(
     short_id: str,
-    merchant: Merchant = Depends(get_current_merchant_jwt),
+    merchant: Merchant = Depends(get_current_merchant),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Fetch a payment intent by its short ID (e.g. `pi_a1b2c3d4e5f6`).
 
-    **Authentication**: Required (Bearer JWT token)
+    **Authentication**: Required (HTTP Basic — key_id:key_secret)
     """
     intent = await payment_intent_service.get_intent(merchant, short_id, db)
 
@@ -97,13 +97,13 @@ async def get_payment_intent(
 async def list_payment_intents(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
-    merchant: Merchant = Depends(get_current_merchant_jwt),
+    merchant: Merchant = Depends(get_current_merchant),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Paginated listing of payment intents.
 
-    **Authentication**: Required (Bearer JWT token)
+    **Authentication**: Required (HTTP Basic — key_id:key_secret)
     """
     intents = await payment_intent_service.list_intents(merchant, db, skip, limit)
     responses = [payment_intent_service.intent_to_response(i) for i in intents]

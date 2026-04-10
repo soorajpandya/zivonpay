@@ -10,7 +10,7 @@ import logging
 
 from app.database import get_db
 from app.models.merchant import Merchant
-from app.api.dependencies import get_current_merchant_jwt
+from app.api.dependencies import get_current_merchant
 from app.schemas.audit import AuditLogResponse, AuditLogListResponse
 from app.services.audit import audit_service
 from app.core.exceptions import ResourceNotFoundError
@@ -32,13 +32,13 @@ async def list_audit_logs(
     action: Optional[str] = Query(None, description="Filter by action (e.g., order.create)"),
     entity_type: Optional[str] = Query(None, description="Filter by entity type (e.g., order, payment)"),
     entity_id: Optional[UUID] = Query(None, description="Filter by entity ID"),
-    merchant: Merchant = Depends(get_current_merchant_jwt),
+    merchant: Merchant = Depends(get_current_merchant),
     db: AsyncSession = Depends(get_db),
 ):
     """
     List audit log entries for the authenticated merchant.
 
-    **Authentication**: Required (Bearer JWT token)
+    **Authentication**: Required (HTTP Basic — key_id:key_secret)
 
     **Filters**: action, entity_type, entity_id
 
@@ -80,13 +80,13 @@ async def list_audit_logs(
 )
 async def get_audit_log(
     audit_id: UUID,
-    merchant: Merchant = Depends(get_current_merchant_jwt),
+    merchant: Merchant = Depends(get_current_merchant),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Get a single audit log entry by ID.
 
-    **Authentication**: Required (Bearer JWT token)
+    **Authentication**: Required (HTTP Basic — key_id:key_secret)
     """
     log = await audit_service.get_audit_log(merchant, audit_id, db)
 

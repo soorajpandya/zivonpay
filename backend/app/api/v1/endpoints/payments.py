@@ -9,7 +9,7 @@ from uuid import UUID
 
 from app.database import get_db
 from app.models.merchant import Merchant
-from app.api.dependencies import get_current_merchant, get_current_merchant_jwt
+from app.api.dependencies import get_current_merchant
 from app.schemas.payment import PaymentResponse, PaymentListResponse
 from app.services.payment import payment_service
 import logging
@@ -27,13 +27,13 @@ router = APIRouter()
 )
 async def get_payment(
     payment_id: UUID,
-    merchant: Merchant = Depends(get_current_merchant_jwt),
+    merchant: Merchant = Depends(get_current_merchant),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Fetch payment details by ID.
     
-    **Authentication**: Required (Bearer JWT token)
+    **Authentication**: Required (HTTP Basic — key_id:key_secret)
     """
     logger.info(
         f"Get payment request",
@@ -56,13 +56,13 @@ async def get_payment(
 async def list_payments(
     skip: int = 0,
     limit: int = 10,
-    merchant: Merchant = Depends(get_current_merchant_jwt),
+    merchant: Merchant = Depends(get_current_merchant),
     db: AsyncSession = Depends(get_db)
 ):
     """
     List payments for the authenticated merchant.
     
-    **Authentication**: Required (Bearer JWT token)
+    **Authentication**: Required (HTTP Basic — key_id:key_secret)
     
     **Pagination**: Use skip and limit parameters
     """
