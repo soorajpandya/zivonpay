@@ -194,11 +194,12 @@ async def add_security_headers(request: Request, call_next):
     
     # Relax CSP for hosted payment pages (inline styles/scripts required)
     path = request.url.path
-    if path.startswith("/link/"):
+    if path.startswith("/link/") or path.startswith("/developer-docs"):
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
             "img-src 'self' data:; font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com; "
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com"
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "connect-src 'self'"
         )
     elif path in ("/docs", "/redoc", "/openapi.json"):
         response.headers["Content-Security-Policy"] = (
@@ -280,6 +281,10 @@ app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 # Mount public payment link page outside /v1 prefix
 from app.api.v1.endpoints.payment_link import router as payment_link_router
 app.include_router(payment_link_router, prefix="/link", tags=["Payment Link"])
+
+# Mount developer documentation (always available)
+from app.api.v1.endpoints.developer_docs import router as docs_router
+app.include_router(docs_router, prefix="/developer-docs", tags=["Developer Docs"])
 
 
 if __name__ == "__main__":
