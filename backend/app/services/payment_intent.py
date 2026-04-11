@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID
 import secrets
 import logging
+from urllib.parse import urlparse, parse_qs, urlencode, quote
 
 from app.models.merchant import Merchant
 from app.models.payment_intent import PaymentIntent, PaymentIntentStatus
@@ -43,6 +44,29 @@ from app.core.exceptions import (
 from app.config import get_base_url
 
 logger = logging.getLogger(__name__)
+
+
+def _sanitize_upi_intent_url(raw_url: str, merchant_name: str = "ZivonPay") -> str:
+    """
+    Rewrite the SprintNXT intent URL to white-label it:
+    - Replace pn (payee name) with the merchant/brand name
+    - Remove the url parameter (points to sprintnxt.in)
+    """
+    if not raw_url or not raw_url.startswith("upi://"):
+        return raw_url
+    # Split on '?' to get scheme+path and query
+    parts = raw_url.split("?", 1)
+    if len(parts) != 2:
+        return raw_url
+    base = parts[0]
+    params = parse_qs(parts[1], keep_blank_values=True)
+    # Replace payee name
+    params["pn"] = [merchant_name]
+    # Remove sprintnxt url param
+    params.pop("url", None)
+    # Reconstruct — urlencode with quote_via to match UPI format
+    qs = urlencode({k: v[0] for k, v in params.items()}, quote_via=quote)
+    return f"{base}?{qs}"
 
 
 def _generate_short_id() -> str:
@@ -176,7 +200,9 @@ class PaymentIntentService:
 
         intent.upstream_reference = upi_response["upi_ref_id"]
         intent.upstream_merchant_id = upi_response.get("merchant_id")
-        intent.upi_intent_url = upi_response.get("intent_url")
+        intent.upi_intent_url = _sanitize_upi_intent_url(
+            upi_response.get("intent_url", ""), customer_name
+        )
         intent.status = PaymentIntentStatus.PENDING
 
         await db.commit()
