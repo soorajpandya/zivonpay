@@ -151,7 +151,8 @@ class PaymentIntentService:
             return intent
 
         amount_rupees = paise_to_rupees(intent.amount)
-        txn_ref = intent.short_id.replace("pi_", "").ljust(10, "0")
+        # Unique per attempt — SprintNXT rejects duplicate txnReferance
+        txn_ref = intent.short_id.replace("pi_", "")[:12] + secrets.token_hex(2)
 
         customer_phone = decrypt_data(intent.customer_phone) if intent.customer_phone else "9999999999"
         customer_name = decrypt_data(intent.customer_name) if intent.customer_name else "Customer"
