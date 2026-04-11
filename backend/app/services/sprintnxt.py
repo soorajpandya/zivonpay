@@ -84,7 +84,7 @@ class SprintNXTService:
         # Log safe payload (mask mobile, no auth headers)
         safe_payload = {k: v for k, v in payload.items()}
         safe_payload["mobile"] = mobile[:2] + "****" + mobile[-4:]
-        logger.info(f"SprintNXT request payload: {safe_payload}")
+        logger.warning(f"SprintNXT request payload: {safe_payload}")
         
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
@@ -96,14 +96,7 @@ class SprintNXTService:
                 
                 response_data = response.json()
                 
-                logger.info(
-                    f"SprintNXT response received",
-                    extra={
-                        "status_code": response.status_code,
-                        "transaction_reference": transaction_reference,
-                        "response_body": response_data
-                    }
-                )
+                logger.warning(f"SprintNXT raw response: {response_data}")
                 
                 # Check response status
                 if response_data.get("status") != True or response_data.get("status_code") != 200:
