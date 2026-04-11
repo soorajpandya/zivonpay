@@ -69,8 +69,8 @@ class SprintNXTService:
         capped_expiry = min(expiry_time, 15)
 
         payload = {
-            "apiId": self.api_id,
-            "bankId": self.bank_id,
+            "apiId": int(self.api_id),
+            "bankId": int(self.bank_id),
             "amount": f"{amount:.2f}",
             "payeeVPA": self.payee_vpa,
             "mobile": mobile,
@@ -81,16 +81,10 @@ class SprintNXTService:
             "refurl": ref_url
         }
         
-        logger.info(
-            f"Creating UPI intent",
-            extra={
-                "transaction_reference": transaction_reference,
-                "amount": amount,
-                "amount_formatted": f"{amount:.2f}",
-                "mobile": mobile[:2] + "****" + mobile[-4:],
-                "payload": {k: v for k, v in payload.items() if k not in ('Token',)}
-            }
-        )
+        # Log safe payload (mask mobile, no auth headers)
+        safe_payload = {k: v for k, v in payload.items()}
+        safe_payload["mobile"] = mobile[:2] + "****" + mobile[-4:]
+        logger.info(f"SprintNXT request payload: {safe_payload}")
         
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
