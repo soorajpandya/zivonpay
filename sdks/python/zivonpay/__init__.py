@@ -205,6 +205,80 @@ class ZivonPay:
         params = {'skip': skip, 'limit': limit}
         return self._request('GET', '/payments', params=params)
     
+    # Payment Links (Payment Intents) API
+    def create_payment_link(
+        self,
+        amount: int,
+        order_id: str,
+        customer_name: str,
+        customer_phone: str,
+        customer_email: Optional[str] = None,
+        currency: str = 'INR',
+        expiry_minutes: int = 15,
+        notes: Optional[Dict] = None,
+        idempotency_key: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Create a hosted payment link (payment intent)
+        
+        Args:
+            amount: Amount in paise (smallest currency unit)
+            order_id: Your unique order reference
+            customer_name: Customer name
+            customer_phone: 10-digit mobile number
+            customer_email: Customer email (optional)
+            currency: Currency code (default: INR)
+            expiry_minutes: Link expiry in minutes (default: 15, max: 1440)
+            notes: Additional metadata
+            idempotency_key: Optional idempotency key
+            
+        Returns:
+            Dict with payment_intent_id, payment_link, etc.
+        """
+        data: Dict[str, Any] = {
+            'amount': amount,
+            'currency': currency,
+            'order_id': order_id,
+            'customer_name': customer_name,
+            'customer_phone': customer_phone,
+            'expiry_minutes': expiry_minutes,
+            'notes': notes or {}
+        }
+        if customer_email:
+            data['customer_email'] = customer_email
+        
+        headers = {}
+        if idempotency_key:
+            headers['X-Idempotency-Key'] = idempotency_key
+        
+        return self._request('POST', '/payment-intent', data=data, headers=headers)
+    
+    def fetch_payment_link(self, short_id: str) -> Dict[str, Any]:
+        """
+        Fetch a payment link by its short ID
+        
+        Args:
+            short_id: Payment intent short ID (e.g. pi_a1b2c3d4e5f6)
+            
+        Returns:
+            Payment intent dict
+        """
+        return self._request('GET', f'/payment-intent/{short_id}')
+    
+    def list_payment_links(self, skip: int = 0, limit: int = 10) -> Dict[str, Any]:
+        """
+        List payment links
+        
+        Args:
+            skip: Number of records to skip
+            limit: Number of records to return
+            
+        Returns:
+            Dict with 'entity', 'count', and 'data' keys
+        """
+        params = {'skip': skip, 'limit': limit}
+        return self._request('GET', '/payment-intent', params=params)
+    
     # Webhook verification
     @staticmethod
     def verify_webhook_signature(

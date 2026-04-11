@@ -43,6 +43,30 @@ const fetchedOrder = await zivonpay.orders.fetch(order.id);
 const orders = await zivonpay.orders.list(0, 10);
 ```
 
+## Payment Links
+
+```typescript
+// Create a hosted payment link
+const intent = await zivonpay.paymentLinks.create({
+  amount: 100000, // ₹1,000 in paise
+  order_id: 'ORD_789',
+  customer_name: 'Suraj Pandya',
+  customer_phone: '9999999999',
+  customer_email: 'suraj@example.com',
+  expiry_minutes: 30
+});
+
+console.log('Payment Link:', intent.payment_link);
+// Share this URL with your customer — they'll see a hosted checkout page with UPI QR
+
+// Fetch payment link status
+const link = await zivonpay.paymentLinks.fetch(intent.payment_intent_id);
+console.log('Status:', link.intent_status);
+
+// List all payment links
+const links = await zivonpay.paymentLinks.list(0, 10);
+```
+
 ## Webhook Verification
 
 ```typescript

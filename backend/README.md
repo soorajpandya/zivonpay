@@ -98,6 +98,22 @@ Once running, access:
 - `GET /v1/payments/:id` - Fetch payment details
 - `GET /v1/payments` - List all payments
 
+### Payment Links (Payment Intents)
+
+- `POST /v1/payment-intent` - Create a hosted payment page with UPI QR code
+- `GET /v1/payment-intent/:short_id` - Fetch payment link details
+- `GET /v1/payment-intent` - List all payment links
+
+### Audit & Logs
+
+- `GET /v1/audit` - List audit trail entries
+- `GET /v1/audit/:id` - Fetch specific audit log
+- `GET /v1/logs` - List application logs
+
+### Health
+
+- `GET /health` - Health check (no auth required)
+
 ## Authentication
 
 All API requests require HTTP Basic Authentication:

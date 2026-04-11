@@ -310,6 +310,49 @@ curl -X GET http://localhost:8000/v1/orders/{order_id} \
   -u "key_test_abc:sec_test_xyz"
 ```
 
+### 4. Create Payment Link
+```bash
+curl -X POST http://localhost:8000/v1/payment-intent \
+  -u "key_test_abc:sec_test_xyz" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 100000,
+    "order_id": "ORD_TEST_001",
+    "customer_name": "Suraj Pandya",
+    "customer_phone": "9999999999",
+    "customer_email": "suraj@example.com",
+    "expiry_minutes": 30
+  }'
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "payment_intent_id": "pi_a1b2c3d4e5f6",
+  "payment_link": "https://api.zivonpay.com/link/pi_a1b2c3d4e5f6?token=eyJ...",
+  "amount": 100000,
+  "currency": "INR",
+  "order_id": "ORD_TEST_001",
+  "intent_status": "created",
+  "expires_at": "2026-04-10T15:30:00Z"
+}
+```
+
+Share the `payment_link` URL with your customer. They'll see a hosted checkout page with a UPI QR code.
+
+### 5. Get Payment Link Status
+```bash
+curl -X GET http://localhost:8000/v1/payment-intent/pi_a1b2c3d4e5f6 \
+  -u "key_test_abc:sec_test_xyz"
+```
+
+### 6. List Payment Links
+```bash
+curl "http://localhost:8000/v1/payment-intent?skip=0&limit=20" \
+  -u "key_test_abc:sec_test_xyz"
+```
+
 ## Security Best Practices
 
 1. **Never commit credentials** to version control

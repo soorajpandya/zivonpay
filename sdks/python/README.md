@@ -42,6 +42,30 @@ order = client.fetch_order(order['id'])
 orders = client.list_orders(skip=0, limit=10)
 ```
 
+## Payment Links
+
+```python
+# Create a hosted payment link
+intent = client.create_payment_link(
+    amount=100000,  # ₹1,000 in paise
+    order_id='ORD_789',
+    customer_name='Suraj Pandya',
+    customer_phone='9999999999',
+    customer_email='suraj@example.com',
+    expiry_minutes=30
+)
+
+print('Payment Link:', intent['payment_link'])
+# Share this URL with your customer — they'll see a hosted checkout page with UPI QR
+
+# Fetch payment link status
+link = client.fetch_payment_link(intent['payment_intent_id'])
+print('Status:', link['intent_status'])
+
+# List all payment links
+links = client.list_payment_links(skip=0, limit=10)
+```
+
 ## Webhook Verification
 
 ```python
