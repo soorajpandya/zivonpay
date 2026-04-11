@@ -71,7 +71,7 @@ class SprintNXTService:
         payload = {
             "apiId": int(self.api_id),
             "bankId": int(self.bank_id),
-            "amount": f"{amount:.2f}",
+            "amount": str(int(amount)) if amount == int(amount) else f"{amount:.2f}",
             "payeeVPA": self.payee_vpa,
             "mobile": mobile,
             "ExpiryTime": str(capped_expiry),
