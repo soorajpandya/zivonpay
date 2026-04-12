@@ -101,7 +101,7 @@ class MerchantSignupResponse(BaseModel):
     """Response schema for merchant signup"""
     merchant: MerchantResponse
     sandbox_credentials: APICredentials = Field(..., description="Sandbox API credentials (zp_test_*)")
-    live_credentials: APICredentials = Field(..., description="Live API credentials (zp_live_*)")
+    live_credentials: Optional[APICredentials] = Field(None, description="Live API credentials (zp_live_*) - issued after verification")
     webhook_secret: Optional[str] = Field(None, description="Webhook secret (store securely, shown only once)")
     auth: TokenResponse
     
