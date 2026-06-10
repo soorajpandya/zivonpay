@@ -83,7 +83,6 @@ async def create_payu_intent(
     return PayUIntentResponse(
         txnid=txnid,
         intent_url=result["intent_url"],
-        qr_code_data_uri=result.get("qr_code_data_uri"),
         txn_status=result.get("txn_status"),
         unmapped_status=result.get("unmapped_status"),
         payment_id=result.get("payment_id"),
