@@ -81,6 +81,54 @@ def generate_payment_hash(
     return _sha512(hash_string)
 
 
+def generate_intent_hash(
+    params: Dict[str, str],
+    salt: str,
+    si_details: str = "",
+) -> str:
+    """
+    Generate the hash for a PayU Server-to-Server (S2S) UPI Intent request.
+
+    This differs from the standard payment-request hash by including the
+    ``si_details`` field before the salt (PayU S2S hash sequence, Case 1):
+
+        key|txnid|amount|productinfo|firstname|email|udf1|udf2|udf3|udf4|udf5||||||si_details|salt
+
+    For a one-time (non-mandate) UPI intent, ``si_details`` is empty.
+
+    Args:
+        params: Dict with required keys: key, txnid, amount, productinfo,
+            firstname, email. Optional udf1..udf5.
+        salt: Your PayU merchant salt.
+        si_details: Standing-instruction details JSON (empty for one-time intent).
+
+    Returns:
+        Lowercase hex SHA-512 hash.
+
+    Raises:
+        KeyError: If a required parameter is missing.
+    """
+    required = ["key", "txnid", "amount", "productinfo", "firstname", "email"]
+    missing = [field for field in required if not params.get(field)]
+    if missing:
+        raise KeyError(f"Missing required PayU hash parameter(s): {', '.join(missing)}")
+
+    ordered = [
+        params["key"],
+        params["txnid"],
+        params["amount"],
+        params["productinfo"],
+        params["firstname"],
+        params["email"],
+    ]
+    ordered.extend(params.get(udf, "") or "" for udf in _UDF_FIELDS)
+    # 5 reserved empty fields (udf6..udf10) then si_details.
+    ordered.extend(["", "", "", "", "", si_details])
+
+    hash_string = "|".join(ordered) + "|" + salt
+    return _sha512(hash_string)
+
+
 def generate_response_hash(
     params: Dict[str, str],
     salt: str,
