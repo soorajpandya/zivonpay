@@ -19,7 +19,6 @@ from app.config import settings
 from app.core.exceptions import (
     UpstreamServiceError,
     UpstreamTimeoutError,
-    UpstreamInvalidResponseError,
 )
 from app.services.payu import generate_intent_hash, normalize_amount, payment_endpoint
 
@@ -153,9 +152,13 @@ class PayUIntentService:
                 logger.error(
                     "PayU intent non-JSON response",
                     extra={"txnid": txnid, "status": response.status_code,
-                           "body": response.text[:500]},
+                           "body": response.text[:1000]},
                 )
-                raise UpstreamInvalidResponseError()
+                raise UpstreamServiceError(
+                    "PayU returned a non-JSON response (UPI S2S intent may not be "
+                    "enabled for this account).",
+                    service="PayU",
+                )
 
             meta = data.get("metaData", {}) or {}
             result = data.get("result", {}) or {}
@@ -169,8 +172,17 @@ class PayUIntentService:
                 raise UpstreamServiceError(f"PayU UPI intent error: {msg}", service="PayU")
 
             if not intent_uri:
-                logger.error("PayU intent missing intentURIData", extra={"txnid": txnid, "meta": meta})
-                raise UpstreamInvalidResponseError()
+                # Log the full PayU body to diagnose enablement/whitelisting issues.
+                logger.error(
+                    "PayU intent missing intentURIData",
+                    extra={"txnid": txnid, "status": response.status_code,
+                           "raw_response": str(data)[:1500]},
+                )
+                raise UpstreamServiceError(
+                    "PayU did not return a UPI intent. Confirm S2S UPI Intent is "
+                    "enabled for your merchant account and the server IP is whitelisted.",
+                    service="PayU",
+                )
 
             return {
                 "intent_url": self._build_deeplink(intent_uri),
