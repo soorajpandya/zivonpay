@@ -261,11 +261,11 @@ const DashboardPaymentLinks = () => {
           amount: link.amount,
           currency: "INR",
           status: "captured",
-          method: link.upi_link ? "upi" : "link",
           bank: bankId ? bankMap[bankId] || null : null,
           notes: {
             payment_link_id: link.id,
             simulated: true,
+            payment_method: link.upi_link ? "upi" : "link",
           },
         },
       ] as any);

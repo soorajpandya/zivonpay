@@ -90,7 +90,7 @@ const DashboardReports = () => {
     if (activeTab === "payin" || activeTab === "transactions" || activeTab === "settlements") {
       const { data } = await supabase
         .from("payments")
-        .select("id, order_id, amount, currency, status, method, bank, notes, created_at")
+        .select("id, order_id, amount, currency, status, bank, notes, created_at")
         .gte("created_at", since)
         .order("created_at", { ascending: false })
         .limit(500);
@@ -108,6 +108,14 @@ const DashboardReports = () => {
     }
 
     setLoading(false);
+  };
+
+  const getPaymentMethod = (payment: PaymentRow) => {
+    if (payment.method) return payment.method;
+    const methodFromNotes = payment.notes && typeof payment.notes.payment_method === "string"
+      ? payment.notes.payment_method
+      : null;
+    return methodFromNotes;
   };
 
   // Pay-in stats
@@ -170,7 +178,7 @@ const DashboardReports = () => {
 
   // Transaction combined list
   const allTransactions = [
-    ...payments.map(p => ({ id: p.id, type: "Pay In" as const, amount: (p.amount || 0) / 100, status: p.status, bank: p.bank, method: p.method, date: p.created_at })),
+    ...payments.map(p => ({ id: p.id, type: "Pay In" as const, amount: (p.amount || 0) / 100, status: p.status, bank: p.bank, method: getPaymentMethod(p), date: p.created_at })),
     ...payouts.map(p => ({ id: p.id, type: "Pay Out" as const, amount: (p.amount || 0) / 100, status: p.status, bank: p.notes?.bank || p.bank_account || null, method: p.mode, date: p.created_at })),
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -200,7 +208,7 @@ const DashboardReports = () => {
     if (activeTab === "payin") {
       downloadCSV("payin-report.csv",
         ["Payment ID", "Bank", "Method", "Amount", "Status", "Date"],
-        payments.map(p => [p.id, p.bank || "", p.method || "", String((p.amount || 0) / 100), p.status, new Date(p.created_at).toLocaleDateString()])
+        payments.map(p => [p.id, p.bank || "", getPaymentMethod(p) || "", String((p.amount || 0) / 100), p.status, new Date(p.created_at).toLocaleDateString()])
       );
     } else if (activeTab === "payout") {
       downloadCSV("payout-report.csv",
@@ -395,7 +403,7 @@ const DashboardReports = () => {
                         <tr key={p.id} className="border-b border-border hover:bg-accent/50">
                           <td className="px-4 py-3 font-mono text-xs text-primary">{p.id}</td>
                           <td className="px-4 py-3"><BankCell bank={p.bank} /></td>
-                          <td className="px-4 py-3">{p.method || "—"}</td>
+                          <td className="px-4 py-3">{getPaymentMethod(p) || "—"}</td>
                           <td className="px-4 py-3 font-semibold">{fmt((p.amount || 0) / 100)}</td>
                           <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
                           <td className="px-4 py-3 text-muted-foreground">{new Date(p.created_at).toLocaleDateString()}</td>

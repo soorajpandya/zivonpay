@@ -179,9 +179,7 @@ const DashboardQRCodes = () => {
         amount: paymentAmount,
         currency: 'INR',
         status: 'captured',
-        method: 'upi',
-        bank: bankId ? bankMap[bankId] || null : null,
-        notes: { qr_code_id: qr.id, qr_name: qr.name, simulated: true },
+        notes: { qr_code_id: qr.id, qr_name: qr.name, simulated: true, bank: bankId ? bankMap[bankId] || null : null, payment_method: 'upi' },
       }]);
 
       if (paymentError) throw paymentError;

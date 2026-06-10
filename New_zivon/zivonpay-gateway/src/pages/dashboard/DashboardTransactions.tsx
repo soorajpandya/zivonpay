@@ -46,7 +46,7 @@ const DashboardTransactions = () => {
     const since = getDateRange();
     const { data, error } = await supabase
       .from("payments")
-      .select("id, order_id, amount, currency, status, method, bank, gateway_ref, notes, metadata, created_at")
+      .select("id, order_id, amount, currency, status, bank, gateway_ref, notes, metadata, created_at")
       .gte("created_at", since)
       .order("created_at", { ascending: false })
       .limit(200);
@@ -71,9 +71,17 @@ const DashboardTransactions = () => {
     setLoading(false);
   };
 
+  const getPaymentMethod = (payment: PaymentRow) => {
+    if (payment.method) return payment.method;
+    const methodFromNotes = payment.notes && typeof payment.notes.payment_method === "string"
+      ? payment.notes.payment_method
+      : null;
+    return methodFromNotes;
+  };
+
   const filtered = payments.filter((p) => {
     if (statusFilter !== "all" && p.status?.toLowerCase() !== statusFilter) return false;
-    if (methodFilter !== "all" && p.method?.toLowerCase() !== methodFilter) return false;
+    if (methodFilter !== "all" && getPaymentMethod(p)?.toLowerCase() !== methodFilter) return false;
     if (searchQuery && !p.id.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
   });
@@ -232,7 +240,7 @@ const DashboardTransactions = () => {
                         );
                       })()}
                     </td>
-                    <td className="px-4 py-3">{p.method || "—"}</td>
+                    <td className="px-4 py-3">{getPaymentMethod(p) || "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground">{new Date(p.created_at).toLocaleDateString()}</td>
                     <td className="px-4 py-3 font-semibold">{fmt(p.amount / 100)}</td>
                     <td className="px-4 py-3">
