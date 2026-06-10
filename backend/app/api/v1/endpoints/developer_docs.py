@@ -173,6 +173,11 @@ p{{margin-bottom:14px;color:{_MUTED};font-size:15px}}
   </div>
 
   <div class="nav-group">
+    <div class="nav-label">PayU Dynamic QR</div>
+    <a class="nav-link" href="#payu-qr">Create Dynamic QR</a>
+  </div>
+
+  <div class="nav-group">
     <div class="nav-label">PayU Payouts</div>
     <a class="nav-link" href="#payout-overview">Overview</a>
     <a class="nav-link" href="#payout-transfer">Initiate Transfer</a>
@@ -1000,6 +1005,64 @@ intent = resp.json()</pre>
   "status": "success",
   "txnid": "pay_a1b2c3d4e5f6",
   "intent_url": "upi://pay?pa=payu@hdfcbank&pn=Merchant&tr=4039...&am=100.00&cu=INR",
+  "txn_status": "pending",
+  "payment_id": "403993715535965242",
+  "reference_id": "c99a6455b3e0dc5cd7167ab8c8cc10d2",
+  "merchant_vpa": "payu@hdfcbank",
+  "merchant_name": "Merchant",
+  "amount": "100.00"
+}}</pre>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════ PAYU DYNAMIC QR ═══════════ -->
+
+<section id="payu-qr">
+<h2>PayU Dynamic QR (S2S)</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-qr/create</span>
+  <p class="ep-desc">Generate a dynamic UPI QR (server-to-server) for offline collection. Internally posts to PayU with <code>pg=DBQR</code> / <code>bankcode=UPIDBQR</code> and returns a <code>upi://pay</code> string you render as a QR. Does not redirect to PayU.</p>
+
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>amount</code></td><td class="type">string</td><td class="req">Yes</td><td>Amount, e.g. <code>"100.00"</code></td></tr>
+    <tr><td><code>productinfo</code></td><td class="type">string</td><td class="req">Yes</td><td>Product/order description</td></tr>
+    <tr><td><code>firstname</code></td><td class="type">string</td><td class="req">Yes</td><td>Customer first name</td></tr>
+    <tr><td><code>email</code></td><td class="type">string</td><td class="req">Yes</td><td>Customer email</td></tr>
+    <tr><td><code>phone</code></td><td class="type">string</td><td class="req">Yes</td><td>Customer phone (8-15 digits)</td></tr>
+    <tr><td><code>expiry_time</code></td><td class="type">integer</td><td class="opt">No</td><td>QR validity in seconds</td></tr>
+    <tr><td><code>txnid</code>, <code>udf1</code>..<code>udf5</code>, <code>surl</code>, <code>furl</code></td><td class="type">string</td><td class="opt">No</td><td>Optional overrides</td></tr>
+    <tr><td><code>s2s_client_ip</code>, <code>s2s_device_info</code></td><td class="type">string</td><td class="opt">No</td><td>Customer device info; inferred from request if omitted</td></tr>
+  </table>
+
+  <div class="code-tabs">
+    <button class="code-tab active" onclick="switchTab(this,'payu-qr-curl')">cURL</button>
+  </div>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre id="payu-qr-curl">curl -X POST https://api.zivonpay.com/v1/payu-qr/create \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{
+    "amount": "100.00",
+    "productinfo": "Order #1234",
+    "firstname": "John",
+    "email": "john@example.com",
+    "phone": "9999999999",
+    "expiry_time": 900
+  }}'</pre>
+  </div>
+
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "txnid": "pay_a1b2c3d4e5f6",
+  "qr_string": "upi://pay?pa=payu@hdfcbank&pn=Merchant&tr=4039...&am=100.00&cu=INR",
   "txn_status": "pending",
   "payment_id": "403993715535965242",
   "reference_id": "c99a6455b3e0dc5cd7167ab8c8cc10d2",
