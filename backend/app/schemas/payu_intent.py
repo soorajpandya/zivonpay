@@ -58,6 +58,9 @@ class PayUIntentResponse(BaseModel):
     status: str = "success"
     txnid: str
     intent_url: str = Field(..., description="upi://pay?... deeplink (render as link/QR)")
+    qr_code_data_uri: Optional[str] = Field(
+        default=None, description="QR code of intent_url as a base64 PNG data URI"
+    )
     txn_status: Optional[str] = None
     unmapped_status: Optional[str] = None
     payment_id: Optional[str] = None

@@ -10,10 +10,13 @@ render a `upi://pay?...` link / QR yourself.
 Reference: https://docs.payu.in/docs/upi-intent-server-to-server
 """
 
+import base64
+import io
 import logging
 from typing import Any, Dict, Optional
 
 import httpx
+import qrcode
 
 from app.config import settings
 from app.core.exceptions import (
@@ -38,6 +41,24 @@ class PayUIntentService:
         self.timeout = settings.PAYU_TIMEOUT
         self.surl = settings.PAYU_SURL
         self.furl = settings.PAYU_FURL
+
+    @staticmethod
+    def _qr_data_uri(data: str) -> str:
+        """Render a UPI deeplink as a base64 PNG data URI (renderable in an <img>)."""
+        if not data:
+            return ""
+        qr = qrcode.QRCode(
+            error_correction=qrcode.constants.ERROR_CORRECT_M,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(data)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+        return f"data:image/png;base64,{b64}"
 
     @staticmethod
     def _build_deeplink(intent_uri_data: str) -> str:
@@ -185,8 +206,10 @@ class PayUIntentService:
                     service="PayU",
                 )
 
+            deeplink = self._build_deeplink(intent_uri)
             return {
-                "intent_url": self._build_deeplink(intent_uri),
+                "intent_url": deeplink,
+                "qr_code_data_uri": self._qr_data_uri(deeplink),
                 "txn_status": meta.get("txnStatus"),
                 "unmapped_status": meta.get("unmappedStatus"),
                 "payment_id": result.get("paymentId"),
