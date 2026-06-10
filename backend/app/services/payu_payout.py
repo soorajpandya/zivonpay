@@ -41,6 +41,11 @@ _PAYOUT_BASE = {
     "test": "https://uatoneapi.payu.in/payout",
     "production": "https://payout.payumoney.com/payout",
 }
+# Bulk Smart Send file APIs use a different test host (staging); prod is the same.
+_BULK_BASE = {
+    "test": "https://staging.payu.in/payout",
+    "production": "https://payout.payumoney.com/payout",
+}
 # Initiate Transfer path differs between environments (test exposes v2).
 _PAYMENT_PATH = {
     "test": "/v2/payment",
@@ -60,6 +65,7 @@ class PayUPayoutService:
 
         self.auth_base = _AUTH_BASE[self.env]
         self.payout_base = _PAYOUT_BASE[self.env]
+        self.bulk_base = _BULK_BASE[self.env]
         self.payment_path = _PAYMENT_PATH[self.env]
 
         # Token cache (per-process).
@@ -296,6 +302,68 @@ class PayUPayoutService:
         url = f"{self.payout_base}/merchant/smartSend/details"
         params = {"payoutMerchantId": self.payout_merchant_id, "merchantRefId": merchant_ref_id}
         return await self._request("GET", url, params=params, extra_headers={"Content-Type": "application/json"})
+
+    # ── Bulk Smart Send (file) ────────────────────────────────────────────────
+
+    async def bulk_upload_transfers(
+        self, *, file_bytes: bytes, filename: str, content_type: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Upload a .csv/.xlsx/.xls file of Smart Send transfers. Returns a fileId
+        used by `bulk_process_file` / `bulk_upload_status`.
+        """
+        self._ensure_configured()
+        token = await self.get_access_token()
+        url = f"{self.bulk_base}/v2/smartSend/bulkUpload/transfers"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "pid": str(self.payout_merchant_id),
+            "mid": str(self.payout_merchant_id),
+            "Accept": "application/json, text/plain, */*",
+        }
+        files = {"file": (filename, file_bytes, content_type or "application/octet-stream")}
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                resp = await client.post(url, files=files, headers=headers)
+        except httpx.TimeoutException:
+            raise UpstreamTimeoutError()
+        except httpx.RequestError as e:
+            logger.error("PayU payout bulk upload error: %s", e)
+            raise UpstreamServiceError("Failed to connect to PayU Payouts", service="PayUPayout")
+        try:
+            return resp.json()
+        except ValueError:
+            logger.error("PayU payout bulk upload non-JSON (%s): %s", resp.status_code, resp.text[:500])
+            raise UpstreamServiceError("Invalid response from PayU Payouts", service="PayUPayout")
+
+    async def bulk_process_file(self, file_id: str) -> Dict[str, Any]:
+        """Process a previously uploaded bulk Smart Send file by fileId."""
+        url = f"{self.bulk_base}/v2/smartSend/bulkUpload/transfers/{file_id}"
+        return await self._request("PUT", url, extra_headers={"Content-Type": "application/json"})
+
+    async def bulk_upload_status(self, file_id: str) -> Dict[str, Any]:
+        """Get the status of an uploaded/processed bulk file by fileId."""
+        url = f"{self.payout_base}/v2/bulkUpload/transfers/{file_id}"
+        return await self._request("GET", url, extra_headers={"Content-Type": "application/json"})
+
+    # ── Beneficiaries ────────────────────────────────────────────────────────
+
+    async def get_beneficiary(self, beneficiary_id: str) -> Dict[str, Any]:
+        """Fetch a registered beneficiary by ID."""
+        url = f"{self.payout_base}/beneficiary"
+        return await self._request("GET", url, params={"beneficiaryId": beneficiary_id})
+
+    async def create_beneficiary(self, body: Dict[str, Any]) -> Dict[str, Any]:
+        """Register a beneficiary (bank account and/or VPA) under the merchant."""
+        url = f"{self.payout_base}/beneficiary"
+        return await self._request("POST", url, json_body=body)
+
+    # ── Webhooks ─────────────────────────────────────────────────────────────
+
+    async def set_webhook(self, webhooks: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Configure payout event webhooks (array of {webhook, values:{url, authorization}})."""
+        url = f"{self.payout_base}/v2/webhook"
+        return await self._request("POST", url, json_body=webhooks)
 
 
 # Global service instance

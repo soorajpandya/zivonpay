@@ -9,7 +9,7 @@ and use a server-side cached PayU OAuth token.
 
 import logging
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 
 from app.api.dependencies import get_current_merchant
 from app.core.exceptions import ValidationError
@@ -17,10 +17,12 @@ from app.models.merchant import Merchant
 from app.schemas.payu_payout import (
     CancelTransferRequest,
     CheckStatusRequest,
+    CreateBeneficiaryRequest,
     CreateSmartSendRequest,
     DisableQueuedRequest,
     InitiateTransferRequest,
     PayoutResponse,
+    SetWebhookRequest,
     VerifyAccountRequest,
 )
 from app.services.payu_payout import payu_payout_service
@@ -211,5 +213,108 @@ async def smart_send_details(
 ):
     try:
         return await payu_payout_service.smart_send_details(merchantRefId)
+    except RuntimeError as e:
+        _handle_config_error(e)
+
+
+@router.post(
+    "/smart-send/bulk-upload",
+    response_model=PayoutResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Bulk upload Smart Send transfers (.csv/.xlsx/.xls)",
+)
+async def bulk_upload(
+    file: UploadFile = File(..., description="CSV/XLSX/XLS file of Smart Send transfers"),
+    merchant: Merchant = Depends(get_current_merchant),
+):
+    """Upload a bulk Smart Send file; returns a fileId to process/track."""
+    content = await file.read()
+    try:
+        return await payu_payout_service.bulk_upload_transfers(
+            file_bytes=content,
+            filename=file.filename or "bulk_smart_send.xlsx",
+            content_type=file.content_type,
+        )
+    except RuntimeError as e:
+        _handle_config_error(e)
+
+
+@router.put(
+    "/smart-send/bulk-process/{file_id}",
+    response_model=PayoutResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Process an uploaded bulk Smart Send file",
+)
+async def bulk_process(
+    file_id: str,
+    merchant: Merchant = Depends(get_current_merchant),
+):
+    try:
+        return await payu_payout_service.bulk_process_file(file_id)
+    except RuntimeError as e:
+        _handle_config_error(e)
+
+
+@router.get(
+    "/bulk-upload/status/{file_id}",
+    response_model=PayoutResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get bulk upload/processing status",
+)
+async def bulk_status(
+    file_id: str,
+    merchant: Merchant = Depends(get_current_merchant),
+):
+    try:
+        return await payu_payout_service.bulk_upload_status(file_id)
+    except RuntimeError as e:
+        _handle_config_error(e)
+
+
+@router.get(
+    "/beneficiaries/{beneficiary_id}",
+    response_model=PayoutResponse,
+    status_code=status.HTTP_200_OK,
+    summary="View beneficiary details",
+)
+async def get_beneficiary(
+    beneficiary_id: str,
+    merchant: Merchant = Depends(get_current_merchant),
+):
+    try:
+        return await payu_payout_service.get_beneficiary(beneficiary_id)
+    except RuntimeError as e:
+        _handle_config_error(e)
+
+
+@router.post(
+    "/beneficiaries",
+    response_model=PayoutResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Create / register a beneficiary",
+)
+async def create_beneficiary(
+    data: CreateBeneficiaryRequest,
+    merchant: Merchant = Depends(get_current_merchant),
+):
+    try:
+        return await payu_payout_service.create_beneficiary(data.model_dump(exclude_none=True))
+    except RuntimeError as e:
+        _handle_config_error(e)
+
+
+@router.post(
+    "/webhook",
+    response_model=PayoutResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Set payout event webhook(s)",
+)
+async def set_webhook(
+    data: SetWebhookRequest,
+    merchant: Merchant = Depends(get_current_merchant),
+):
+    payload = [w.model_dump(exclude_none=True) for w in data.webhooks]
+    try:
+        return await payu_payout_service.set_webhook(payload)
     except RuntimeError as e:
         _handle_config_error(e)

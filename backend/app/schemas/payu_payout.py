@@ -123,6 +123,46 @@ class CreateSmartSendRequest(BaseModel):
         return self
 
 
+class CreateBeneficiaryRequest(BaseModel):
+    """POST /v1/payu-payout/beneficiaries"""
+
+    name: Optional[str] = None
+    email: Optional[str] = None
+    mobile: Optional[str] = None
+    accountNo: Optional[str] = None
+    ifsc: Optional[str] = None
+    vpa: Optional[str] = None
+    cardNo: Optional[str] = None
+    beneCode: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _require_destination(self):
+        has_bank = bool(self.accountNo and self.ifsc)
+        if not has_bank and not self.vpa and not self.cardNo:
+            raise ValueError(
+                "Provide one of: accountNo+ifsc, vpa, or cardNo to register a beneficiary"
+            )
+        return self
+
+
+class WebhookValues(BaseModel):
+    url: str = Field(..., description="POST URL PayU will call with payout events")
+    authorization: Optional[str] = Field(
+        default=None, description="Value sent in the webhook Authorization header"
+    )
+
+
+class WebhookItem(BaseModel):
+    webhook: str = Field(default="default", description="Event type, e.g. 'default', 'transfer_reversed'")
+    values: WebhookValues
+
+
+class SetWebhookRequest(BaseModel):
+    """POST /v1/payu-payout/webhook"""
+
+    webhooks: List[WebhookItem] = Field(..., min_length=1)
+
+
 class PayoutResponse(BaseModel):
     """Generic passthrough wrapper around PayU's status/msg/code/data envelope."""
 
