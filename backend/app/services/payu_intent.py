@@ -20,7 +20,7 @@ from app.core.exceptions import (
     UpstreamServiceError,
     UpstreamTimeoutError,
 )
-from app.services.payu import generate_intent_hash, normalize_amount, payment_endpoint
+from app.services.payu import generate_payment_hash, normalize_amount, payment_endpoint
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +115,8 @@ class PayUIntentService:
             "udf4": udf4,
             "udf5": udf5,
         }
-        hash_value = generate_intent_hash(hash_params, self.salt)
+        # One-time UPI intent uses the standard _payment hash (no si_details).
+        hash_value = generate_payment_hash(hash_params, self.salt)
 
         payload = {
             **hash_params,
