@@ -72,6 +72,15 @@ class Settings(BaseSettings):
     PAYU_SURL: str = "https://api.zivonpay.com/payu/success"
     PAYU_FURL: str = "https://api.zivonpay.com/payu/failure"
 
+    # PayU Payouts (separate product: OAuth + payout transfers)
+    # Start in "test" for safety; switch to "production" only when ready.
+    PAYU_PAYOUT_ENVIRONMENT: str = Field(default="test", pattern="^(test|production)$")
+    PAYU_PAYOUT_CLIENT_ID: Optional[str] = None
+    PAYU_PAYOUT_CLIENT_SECRET: Optional[str] = None
+    # payoutMerchantId / pid (different from the PayU merchant key)
+    PAYU_PAYOUT_MERCHANT_ID: Optional[str] = None
+    PAYU_PAYOUT_TIMEOUT: int = 30
+
     # Security
     JWT_SECRET_KEY: str = Field(default_factory=lambda: secrets.token_urlsafe(32))
     JWT_ALGORITHM: str = "HS256"
