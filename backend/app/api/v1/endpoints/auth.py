@@ -76,9 +76,12 @@ async def signup(
             detail="Email already registered"
         )
     
-    # Generate sandbox API credentials only (live keys issued after verification)
+    # Generate both sandbox and live API credentials at signup
     sandbox_key_id, sandbox_secret = generate_api_credentials("sandbox")
     sandbox_secret_hash = hash_password(sandbox_secret)
+
+    live_key_id, live_secret = generate_api_credentials("production")
+    live_secret_hash = hash_password(live_secret)
     
     # Generate webhook secret if URL provided
     webhook_secret = None
@@ -98,8 +101,8 @@ async def signup(
         mobile=signup_data.mobile,
         api_key_id=sandbox_key_id,
         api_secret_hash=sandbox_secret_hash,
-        live_api_key_id=None,
-        live_api_secret_hash=None,
+        live_api_key_id=live_key_id,
+        live_api_secret_hash=live_secret_hash,
         webhook_url=signup_data.webhook_url,
         webhook_secret_hash=webhook_secret_hash,
         environment=EnvironmentType.SANDBOX,
@@ -125,7 +128,10 @@ async def signup(
             key_id=sandbox_key_id,
             key_secret=sandbox_secret
         ),
-        live_credentials=None,
+        live_credentials=APICredentials(
+            key_id=live_key_id,
+            key_secret=live_secret
+        ),
         webhook_secret=webhook_secret,
         auth=TokenResponse(
             access_token=access_token,
