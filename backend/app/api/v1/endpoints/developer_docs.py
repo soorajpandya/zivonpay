@@ -163,6 +163,32 @@ p{{margin-bottom:14px;color:{_MUTED};font-size:15px}}
   </div>
 
   <div class="nav-group">
+    <div class="nav-label">PayU Checkout</div>
+    <a class="nav-link" href="#payu-collect">Collect Payment</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-label">PayU UPI Intent</div>
+    <a class="nav-link" href="#payu-intent">Create UPI Intent</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-label">PayU Payouts</div>
+    <a class="nav-link" href="#payout-overview">Overview</a>
+    <a class="nav-link" href="#payout-transfer">Initiate Transfer</a>
+    <a class="nav-link" href="#payout-status">Check Status</a>
+    <a class="nav-link" href="#payout-cancel">Cancel Transfer</a>
+    <a class="nav-link" href="#payout-queue">Disable Queued</a>
+    <a class="nav-link" href="#payout-verify">Verify Account</a>
+    <a class="nav-link" href="#payout-vpa">Validate VPA</a>
+    <a class="nav-link" href="#payout-ifsc">IFSC Details</a>
+    <a class="nav-link" href="#payout-smartsend">Smart Send</a>
+    <a class="nav-link" href="#payout-bulk">Bulk Smart Send</a>
+    <a class="nav-link" href="#payout-bene">Beneficiaries</a>
+    <a class="nav-link" href="#payout-webhook">Set Webhook</a>
+  </div>
+
+  <div class="nav-group">
     <div class="nav-label">Webhooks</div>
     <a class="nav-link" href="#webhooks">Webhook Events</a>
     <a class="nav-link" href="#webhook-verification">Webhook Verification</a>
@@ -867,6 +893,349 @@ intent = resp.json()</pre>
     <button class="copy-btn" onclick="copyCode(this)">Copy</button>
     <pre id="list-intent-curl">curl "https://api.zivonpay.com/v1/payment-intent?skip=0&limit=20" \\
   -u "zp_test_yourKeyId:zp_test_yourKeySecret"</pre>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════ PAYU CHECKOUT ═══════════ -->
+
+<section id="payu-collect">
+<h2>PayU Collect Payment</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu/collect</span>
+  <p class="ep-desc">Build a signed PayU <code>_payment</code> request (Merchant Hosted Checkout). Submit the returned <code>fields</code> (or <code>form_html</code>) to the <code>action_url</code> from the customer's browser so PayU can handle bank / 3-D Secure redirects. The SHA-512 hash is computed server-side; the salt is never returned.</p>
+
+  <div class="info-box tip">Add <code>?as_form=true</code> to receive the self-submitting HTML form directly (<code>text/html</code>) instead of JSON.</div>
+
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>amount</code></td><td class="type">string</td><td class="req">Yes</td><td>Amount, e.g. <code>"100.00"</code> (normalized server-side)</td></tr>
+    <tr><td><code>productinfo</code></td><td class="type">string</td><td class="req">Yes</td><td>Product/order description</td></tr>
+    <tr><td><code>firstname</code></td><td class="type">string</td><td class="req">Yes</td><td>Customer first name</td></tr>
+    <tr><td><code>email</code></td><td class="type">string</td><td class="req">Yes</td><td>Customer email</td></tr>
+    <tr><td><code>phone</code></td><td class="type">string</td><td class="req">Yes</td><td>Customer phone (8-15 digits)</td></tr>
+    <tr><td><code>surl</code> / <code>furl</code></td><td class="type">string</td><td class="opt">No</td><td>Success/failure callback URLs (default to server config)</td></tr>
+    <tr><td><code>txnid</code></td><td class="type">string</td><td class="opt">No</td><td>Unique txn id (auto-generated if omitted)</td></tr>
+    <tr><td><code>udf1</code>..<code>udf5</code></td><td class="type">string</td><td class="opt">No</td><td>User-defined fields (included in the hash)</td></tr>
+    <tr><td><code>pg</code> / <code>bankcode</code> / <code>vpa</code> / <code>address1</code></td><td class="type">string</td><td class="opt">No</td><td>Instrument routing passthrough (not part of the hash)</td></tr>
+  </table>
+
+  <div class="code-tabs">
+    <button class="code-tab active" onclick="switchTab(this,'payu-collect-curl')">cURL</button>
+  </div>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre id="payu-collect-curl">curl -X POST https://api.zivonpay.com/v1/payu/collect \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{
+    "amount": "100.00",
+    "productinfo": "Order #1234",
+    "firstname": "John",
+    "email": "john@example.com",
+    "phone": "9999999999"
+  }}'</pre>
+  </div>
+
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "txnid": "pay_a1b2c3d4e5f6",
+  "action_url": "https://secure.payu.in/_payment",
+  "fields": {{ "key": "...", "txnid": "...", "amount": "100.00", "hash": "<sha512>" }},
+  "form_html": "<!DOCTYPE html>... self-submitting form ..."
+}}</pre>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════ PAYU UPI INTENT ═══════════ -->
+
+<section id="payu-intent">
+<h2>PayU UPI Intent (S2S)</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-intent/create</span>
+  <p class="ep-desc">Initiate a server-to-server PayU UPI Intent and receive a <code>upi://pay</code> deeplink to render as a button or QR code. Unlike Collect, this does not redirect to PayU.</p>
+
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>amount</code></td><td class="type">string</td><td class="req">Yes</td><td>Amount, e.g. <code>"100.00"</code></td></tr>
+    <tr><td><code>productinfo</code></td><td class="type">string</td><td class="req">Yes</td><td>Product/order description</td></tr>
+    <tr><td><code>firstname</code></td><td class="type">string</td><td class="req">Yes</td><td>Customer first name</td></tr>
+    <tr><td><code>email</code></td><td class="type">string</td><td class="req">Yes</td><td>Customer email</td></tr>
+    <tr><td><code>phone</code></td><td class="type">string</td><td class="req">Yes</td><td>Customer phone (8-15 digits)</td></tr>
+    <tr><td><code>bankcode</code></td><td class="type">string</td><td class="opt">No</td><td>Default <code>INTENT</code> (generic). Or app code: TEZ, PHONEPE, PAYTM, ...</td></tr>
+    <tr><td><code>upi_app_name</code></td><td class="type">string</td><td class="opt">No</td><td>Target app for specific intent</td></tr>
+    <tr><td><code>txnid</code>, <code>udf1</code>..<code>udf5</code>, <code>surl</code>, <code>furl</code></td><td class="type">string</td><td class="opt">No</td><td>Optional overrides</td></tr>
+  </table>
+
+  <div class="code-tabs">
+    <button class="code-tab active" onclick="switchTab(this,'payu-intent-curl')">cURL</button>
+  </div>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre id="payu-intent-curl">curl -X POST https://api.zivonpay.com/v1/payu-intent/create \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{
+    "amount": "100.00",
+    "productinfo": "Order #1234",
+    "firstname": "John",
+    "email": "john@example.com",
+    "phone": "9999999999",
+    "bankcode": "INTENT"
+  }}'</pre>
+  </div>
+
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "txnid": "pay_a1b2c3d4e5f6",
+  "intent_url": "upi://pay?pa=payu@hdfcbank&pn=Merchant&tr=4039...&am=100.00&cu=INR",
+  "txn_status": "pending",
+  "payment_id": "403993715535965242",
+  "reference_id": "c99a6455b3e0dc5cd7167ab8c8cc10d2",
+  "merchant_vpa": "payu@hdfcbank",
+  "merchant_name": "Merchant",
+  "amount": "100.00"
+}}</pre>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════ PAYU PAYOUTS ═══════════ -->
+
+<section id="payout-overview">
+<h2>PayU Payouts</h2>
+<p>Disburse funds to bank accounts or UPI VPAs. All Payout endpoints are mounted under <code>/v1/payu-payout</code> and use the same merchant HTTP Basic auth. The PayU OAuth token is generated and cached server-side — you never handle it directly. Responses pass through PayU's envelope: <code>{{ "status": 0, "msg": ..., "code": ..., "data": ... }}</code> (<code>status: 0</code> = success, <code>1</code> = failure).</p>
+
+<div class="info-box warn">Payouts must be activated on the PayU account before these endpoints return data; otherwise PayU responds with an authorization error.</div>
+</section>
+
+<section id="payout-transfer">
+<h2>Initiate Transfer</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-payout/transfers</span>
+  <p class="ep-desc">Initiate one or more payouts (IMPS / NEFT / RTGS / UPI). For UPI provide <code>vpa</code>; for IMPS/NEFT/RTGS provide <code>beneficiaryAccountNumber</code> + <code>beneficiaryIfscCode</code>.</p>
+
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>transfers[]</code></td><td class="type">array</td><td class="req">Yes</td><td>List of transfer objects (below)</td></tr>
+    <tr><td><code>paymentType</code></td><td class="type">string</td><td class="req">Yes</td><td>IMPS | UPI | NEFT | RTGS</td></tr>
+    <tr><td><code>amount</code></td><td class="type">number</td><td class="req">Yes</td><td>Amount, e.g. <code>1234.12</code></td></tr>
+    <tr><td><code>purpose</code></td><td class="type">string</td><td class="req">Yes</td><td>Purpose of the transfer</td></tr>
+    <tr><td><code>vpa</code></td><td class="type">string</td><td class="opt">Cond.</td><td>Required for UPI</td></tr>
+    <tr><td><code>beneficiaryAccountNumber</code> + <code>beneficiaryIfscCode</code></td><td class="type">string</td><td class="opt">Cond.</td><td>Required for IMPS/NEFT/RTGS</td></tr>
+    <tr><td><code>beneficiaryName</code> / <code>beneficiaryEmail</code> / <code>beneficiaryMobile</code></td><td class="type">string</td><td class="opt">No</td><td>Beneficiary details</td></tr>
+    <tr><td><code>merchantRefId</code></td><td class="type">string</td><td class="opt">No</td><td>Unique ref ID (max 40 chars); auto-generated if omitted</td></tr>
+    <tr><td><code>retry</code></td><td class="type">boolean</td><td class="opt">No</td><td>Retry on bank failure (default false)</td></tr>
+  </table>
+
+  <div class="code-tabs">
+    <button class="code-tab active" onclick="switchTab(this,'payout-transfer-curl')">cURL</button>
+  </div>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre id="payout-transfer-curl">curl -X POST https://api.zivonpay.com/v1/payu-payout/transfers \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{
+    "transfers": [
+      {{
+        "paymentType": "UPI",
+        "amount": 100.00,
+        "purpose": "Vendor payout",
+        "vpa": "payee@okhdfcbank",
+        "beneficiaryName": "Payee Name",
+        "merchantRefId": "PAYOUT_001"
+      }}
+    ]
+  }}'</pre>
+  </div>
+</div>
+</section>
+
+<section id="payout-status">
+<h2>Check Transfer Status</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-payout/transfers/status</span>
+  <p class="ep-desc">Look up transfer status by <code>merchantRefId</code>, <code>batchId</code>, status, or date range.</p>
+
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>merchantRefId</code></td><td class="type">string</td><td>Reference ID used at initiation</td></tr>
+    <tr><td><code>batchId</code></td><td class="type">string</td><td>Batch ID</td></tr>
+    <tr><td><code>transferStatus</code></td><td class="type">string</td><td>QUEUED | IN_PROGRESS | PENDING | FAILED | SUCCESS</td></tr>
+    <tr><td><code>from</code> / <code>to</code></td><td class="type">string</td><td>Date range (DD/MM/YYYY)</td></tr>
+    <tr><td><code>page</code> / <code>pageSize</code></td><td class="type">int</td><td>Pagination (pageSize max 1000)</td></tr>
+  </table>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-payout/transfers/status \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{ "merchantRefId": "PAYOUT_001" }}'</pre>
+  </div>
+</div>
+</section>
+
+<section id="payout-cancel">
+<h2>Cancel Transfer</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-payout/transfers/cancel</span>
+  <p class="ep-desc">Cancel a transfer while it is still <code>QUEUED</code>/<code>SCHEDULED</code>. Body: <code>{{ "merchantRefId": "PAYOUT_001" }}</code>.</p>
+</div>
+</section>
+
+<section id="payout-queue">
+<h2>Disable Queued Payouts</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-payout/queue-flag</span>
+  <p class="ep-desc">Control whether transactions queue on insufficient balance. Body: <code>{{ "queueTxn": false, "configMerchantId": "optional" }}</code>.</p>
+</div>
+</section>
+
+<section id="payout-verify">
+<h2>Verify Account (Penny Test)</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-payout/verify-account</span>
+  <p class="ep-desc">Verify a bank account and optionally match the beneficiary name.</p>
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>accountNumber</code></td><td class="type">string</td><td class="req">Yes</td><td>Beneficiary account number</td></tr>
+    <tr><td><code>ifscCode</code></td><td class="type">string</td><td class="req">Yes</td><td>Bank IFSC code</td></tr>
+    <tr><td><code>merchantRefId</code></td><td class="type">string</td><td class="req">Yes</td><td>Unique reference ID</td></tr>
+    <tr><td><code>beneName</code></td><td class="type">string</td><td class="opt">No</td><td>Expected name (with <code>nameMatching</code>)</td></tr>
+    <tr><td><code>validateIfsc</code> / <code>nameMatching</code></td><td class="type">boolean</td><td class="opt">No</td><td>Verification flags</td></tr>
+  </table>
+</div>
+</section>
+
+<section id="payout-vpa">
+<h2>Validate VPA</h2>
+<div class="endpoint">
+  <span class="method method-get">GET</span>
+  <span class="ep-url">/v1/payu-payout/validate-vpa?vpa=name@bank</span>
+  <p class="ep-desc">Validate a UPI VPA before initiating a UPI payout. Returns the registered name if valid.</p>
+</div>
+</section>
+
+<section id="payout-ifsc">
+<h2>IFSC Details</h2>
+<div class="endpoint">
+  <span class="method method-get">GET</span>
+  <span class="ep-url">/v1/payu-payout/ifsc/{{ifsc}}</span>
+  <p class="ep-desc">Fetch bank/branch details for an IFSC code, e.g. <code>/v1/payu-payout/ifsc/HDFC0004392</code>.</p>
+</div>
+</section>
+
+<section id="payout-smartsend">
+<h2>Smart Send Links</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-payout/smart-send</span>
+  <p class="ep-desc">Create a Smart Send link when beneficiary bank/VPA details are unknown. Either <code>custMobile</code> or <code>custEmail</code> is required.</p>
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>amount</code></td><td class="type">string</td><td class="req">Yes</td><td>Payout amount, e.g. <code>"100.00"</code></td></tr>
+    <tr><td><code>merchantRefId</code></td><td class="type">string</td><td class="req">Yes</td><td>Unique reference for the link</td></tr>
+    <tr><td><code>custMobile</code> / <code>custEmail</code></td><td class="type">string</td><td class="opt">Cond.</td><td>At least one required</td></tr>
+    <tr><td><code>custName</code> / <code>description</code> / <code>expiryDate</code></td><td class="type">string</td><td class="opt">No</td><td>Optional metadata (expiry default 7 days)</td></tr>
+  </table>
+</div>
+<div class="endpoint">
+  <span class="method method-get">GET</span>
+  <span class="ep-url">/v1/payu-payout/smart-send/details?merchantRefId=...</span>
+  <p class="ep-desc">Fetch the status/details of a Smart Send link by reference ID.</p>
+</div>
+</section>
+
+<section id="payout-bulk">
+<h2>Bulk Smart Send</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-payout/smart-send/bulk-upload</span>
+  <p class="ep-desc">Upload a <code>.csv</code>/<code>.xlsx</code>/<code>.xls</code> file of Smart Send transfers (multipart <code>file</code> field). Returns a <code>fileId</code>.</p>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-payout/smart-send/bulk-upload \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -F "file=@bulk_smart_send.xlsx"</pre>
+  </div>
+</div>
+<div class="endpoint">
+  <span class="method method-put">PUT</span>
+  <span class="ep-url">/v1/payu-payout/smart-send/bulk-process/{{file_id}}</span>
+  <p class="ep-desc">Process a previously uploaded bulk file by its <code>fileId</code>.</p>
+</div>
+<div class="endpoint">
+  <span class="method method-get">GET</span>
+  <span class="ep-url">/v1/payu-payout/bulk-upload/status/{{file_id}}</span>
+  <p class="ep-desc">Get the upload/processing status of a bulk file.</p>
+</div>
+</section>
+
+<section id="payout-bene">
+<h2>Beneficiaries</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-payout/beneficiaries</span>
+  <p class="ep-desc">Register a beneficiary. Provide one of: <code>accountNo</code>+<code>ifsc</code>, <code>vpa</code>, or <code>cardNo</code>.</p>
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>name</code> / <code>email</code> / <code>mobile</code></td><td class="type">string</td><td>Beneficiary contact details</td></tr>
+    <tr><td><code>accountNo</code> + <code>ifsc</code></td><td class="type">string</td><td>Bank destination</td></tr>
+    <tr><td><code>vpa</code></td><td class="type">string</td><td>UPI destination</td></tr>
+    <tr><td><code>beneCode</code></td><td class="type">string</td><td>Optional merchant beneficiary code</td></tr>
+  </table>
+</div>
+<div class="endpoint">
+  <span class="method method-get">GET</span>
+  <span class="ep-url">/v1/payu-payout/beneficiaries/{{beneficiary_id}}</span>
+  <p class="ep-desc">Fetch a registered beneficiary by its PayU ID.</p>
+</div>
+</section>
+
+<section id="payout-webhook">
+<h2>Set Payout Webhook</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-payout/webhook</span>
+  <p class="ep-desc">Configure payout event webhook(s). PayU will POST events to your URL.</p>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-payout/webhook \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{
+    "webhooks": [
+      {{
+        "webhook": "default",
+        "values": {{
+          "url": "https://yourapp.com/payouts/webhook",
+          "authorization": "your-shared-secret"
+        }}
+      }}
+    ]
+  }}'</pre>
   </div>
 </div>
 </section>
