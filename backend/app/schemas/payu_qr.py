@@ -89,3 +89,84 @@ class PayUQRResponse(BaseModel):
                 "amount": "100.00",
             }
         }
+
+
+# ── Transaction management (postservice) — works for QR / Collect / Intent ──
+
+
+class VerifyPaymentRequest(BaseModel):
+    """Look up a QR/transaction status by merchant txnid (verify_payment)."""
+
+    txnid: str = Field(..., min_length=1, description="Merchant transaction id used when generating the QR")
+
+    class Config:
+        json_schema_extra = {"example": {"txnid": "pay_a1b2c3d4e5f6"}}
+
+
+class CheckPaymentRequest(BaseModel):
+    """Look up a transaction by PayU id / mihpayid (check_payment)."""
+
+    mihpayid: str = Field(..., min_length=1, description="PayU transaction id (mihpayid)")
+
+    class Config:
+        json_schema_extra = {"example": {"mihpayid": "403993715535965242"}}
+
+
+class RefundRequest(BaseModel):
+    """Initiate a full/partial refund (cancel_refund_transaction)."""
+
+    mihpayid: str = Field(..., min_length=1, description="PayU transaction id to refund")
+    token_id: str = Field(
+        ..., min_length=1, max_length=50,
+        description="Unique merchant refund reference (idempotency token)",
+    )
+    amount: str = Field(..., description="Refund amount (full or partial), e.g. '100.00'")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "mihpayid": "403993715535965242",
+                "token_id": "refund_001",
+                "amount": "100.00",
+            }
+        }
+
+
+class RefundStatusRequest(BaseModel):
+    """Check refund/cancel request status (check_action_status)."""
+
+    mihpayid: str = Field(..., min_length=1, description="PayU transaction id the refund was raised against")
+    request_id: Optional[str] = Field(default=None, description="Optional refund request id to narrow the lookup")
+
+    class Config:
+        json_schema_extra = {
+            "example": {"mihpayid": "403993715535965242", "request_id": "123456"}
+        }
+
+
+class PayUTransactionResponse(BaseModel):
+    """Raw PayU postservice response passthrough."""
+
+    status: str = "success"
+    command: str = Field(..., description="The PayU command that was executed")
+    response: Dict[str, Any] = Field(..., description="PayU's raw JSON response")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "status": "success",
+                "command": "verify_payment",
+                "response": {
+                    "status": 1,
+                    "msg": "1 out of 1 Transactions Fetched Successfully",
+                    "transaction_details": {
+                        "pay_a1b2c3d4e5f6": {
+                            "mihpayid": "403993715535965242",
+                            "status": "success",
+                            "amt": "100.00",
+                            "mode": "UPI",
+                        }
+                    },
+                },
+            }
+        }

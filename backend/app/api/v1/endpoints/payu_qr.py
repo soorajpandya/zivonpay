@@ -12,10 +12,19 @@ from fastapi import APIRouter, Depends, Request, status
 
 from app.models.merchant import Merchant
 from app.api.dependencies import get_current_merchant
-from app.schemas.payu_qr import PayUQRCreate, PayUQRResponse
+from app.schemas.payu_qr import (
+    PayUQRCreate,
+    PayUQRResponse,
+    VerifyPaymentRequest,
+    CheckPaymentRequest,
+    RefundRequest,
+    RefundStatusRequest,
+    PayUTransactionResponse,
+)
 from app.core.exceptions import ValidationError
 from app.core.utils import generate_payment_id
 from app.services.payu_qr import payu_qr_service
+from app.services.payu_txn import payu_txn_service
 
 logger = logging.getLogger(__name__)
 
@@ -92,3 +101,101 @@ async def create_payu_qr(
         merchant_name=result.get("merchant_name"),
         amount=result.get("amount"),
     )
+
+
+@router.post(
+    "/verify-payment",
+    response_model=PayUTransactionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Verify Payment (by txnid)",
+    description=(
+        "Check a QR (or any PayU) transaction's status using your merchant "
+        "txnid via PayU's verify_payment command."
+    ),
+)
+async def verify_payment(
+    data: VerifyPaymentRequest,
+    merchant: Merchant = Depends(get_current_merchant),
+):
+    """Look up a transaction status by merchant txnid."""
+    try:
+        result = await payu_txn_service.verify_payment(data.txnid)
+    except RuntimeError as e:
+        logger.error("PayU not configured: %s", e)
+        raise ValidationError(str(e))
+    return PayUTransactionResponse(command="verify_payment", response=result)
+
+
+@router.post(
+    "/check-payment",
+    response_model=PayUTransactionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Check Payment (by mihpayid)",
+    description=(
+        "Check a transaction's status using PayU's transaction id (mihpayid) "
+        "via PayU's check_payment command."
+    ),
+)
+async def check_payment(
+    data: CheckPaymentRequest,
+    merchant: Merchant = Depends(get_current_merchant),
+):
+    """Look up a transaction status by PayU id (mihpayid)."""
+    try:
+        result = await payu_txn_service.check_payment(data.mihpayid)
+    except RuntimeError as e:
+        logger.error("PayU not configured: %s", e)
+        raise ValidationError(str(e))
+    return PayUTransactionResponse(command="check_payment", response=result)
+
+
+@router.post(
+    "/refund",
+    response_model=PayUTransactionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Refund Transaction (full/partial)",
+    description=(
+        "Initiate a full or partial refund (or cancel an authorized "
+        "transaction) via PayU's cancel_refund_transaction command."
+    ),
+)
+async def refund_transaction(
+    data: RefundRequest,
+    merchant: Merchant = Depends(get_current_merchant),
+):
+    """Initiate a refund against a PayU transaction."""
+    try:
+        result = await payu_txn_service.refund(
+            mihpayid=data.mihpayid,
+            token_id=data.token_id,
+            amount=data.amount,
+        )
+    except ValueError as e:
+        raise ValidationError(str(e), field="amount")
+    except RuntimeError as e:
+        logger.error("PayU not configured: %s", e)
+        raise ValidationError(str(e))
+    return PayUTransactionResponse(command="cancel_refund_transaction", response=result)
+
+
+@router.post(
+    "/refund-status",
+    response_model=PayUTransactionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Refund Status",
+    description=(
+        "Check the status of a refund/cancel request via PayU's "
+        "check_action_status command."
+    ),
+)
+async def refund_status(
+    data: RefundStatusRequest,
+    merchant: Merchant = Depends(get_current_merchant),
+):
+    """Check refund/cancel request status."""
+    try:
+        result = await payu_txn_service.refund_status(data.mihpayid, data.request_id)
+    except RuntimeError as e:
+        logger.error("PayU not configured: %s", e)
+        raise ValidationError(str(e))
+    return PayUTransactionResponse(command="check_action_status", response=result)

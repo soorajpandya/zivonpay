@@ -175,6 +175,10 @@ p{{margin-bottom:14px;color:{_MUTED};font-size:15px}}
   <div class="nav-group">
     <div class="nav-label">PayU Dynamic QR</div>
     <a class="nav-link" href="#payu-qr">Create Dynamic QR</a>
+    <a class="nav-link" href="#payu-qr-verify">Verify Payment</a>
+    <a class="nav-link" href="#payu-qr-check">Check Payment</a>
+    <a class="nav-link" href="#payu-qr-refund">Refund Transaction</a>
+    <a class="nav-link" href="#payu-qr-refund-status">Refund Status</a>
   </div>
 
   <div class="nav-group">
@@ -1069,6 +1073,171 @@ intent = resp.json()</pre>
   "merchant_vpa": "payu@hdfcbank",
   "merchant_name": "Merchant",
   "amount": "100.00"
+}}</pre>
+  </div>
+
+  <div class="info-box">After generating the QR, use the transaction APIs below to track payment and issue refunds. These run over PayU's <code>postservice</code> command API and work for Collect and UPI Intent transactions too.</div>
+</div>
+</section>
+
+<section id="payu-qr-verify">
+<h2>Verify Payment</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-qr/verify-payment</span>
+  <p class="ep-desc">Fetch a transaction's status using your merchant <code>txnid</code> (PayU <code>verify_payment</code> command). Use this to poll whether a QR has been paid.</p>
+
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>txnid</code></td><td class="type">string</td><td class="req">Yes</td><td>Merchant transaction id used when generating the QR</td></tr>
+  </table>
+
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-qr/verify-payment \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{ "txnid": "pay_a1b2c3d4e5f6" }}'</pre>
+  </div>
+
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "command": "verify_payment",
+  "response": {{
+    "status": 1,
+    "msg": "1 out of 1 Transactions Fetched Successfully",
+    "transaction_details": {{
+      "pay_a1b2c3d4e5f6": {{
+        "mihpayid": "403993715535965242",
+        "status": "success",
+        "amt": "100.00",
+        "mode": "UPI"
+      }}
+    }}
+  }}
+}}</pre>
+  </div>
+</div>
+</section>
+
+<section id="payu-qr-check">
+<h2>Check Payment</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-qr/check-payment</span>
+  <p class="ep-desc">Fetch a transaction's status using PayU's transaction id <code>mihpayid</code> (PayU <code>check_payment</code> command). Same data as Verify Payment, keyed by PayU id instead of your txnid.</p>
+
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>mihpayid</code></td><td class="type">string</td><td class="req">Yes</td><td>PayU transaction id (mihpayid)</td></tr>
+  </table>
+
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-qr/check-payment \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{ "mihpayid": "403993715535965242" }}'</pre>
+  </div>
+
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "command": "check_payment",
+  "response": {{
+    "status": 1,
+    "msg": "Transaction Fetched Successfully",
+    "transaction_details": {{ "mihpayid": "403993715535965242", "status": "success" }}
+  }}
+}}</pre>
+  </div>
+</div>
+</section>
+
+<section id="payu-qr-refund">
+<h2>Refund Transaction</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-qr/refund</span>
+  <p class="ep-desc">Initiate a full or partial refund (or cancel an authorized transaction) via PayU's <code>cancel_refund_transaction</code> command. Provide the PayU <code>mihpayid</code> and a unique <code>token_id</code> as the refund reference.</p>
+
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>mihpayid</code></td><td class="type">string</td><td class="req">Yes</td><td>PayU transaction id to refund</td></tr>
+    <tr><td><code>token_id</code></td><td class="type">string</td><td class="req">Yes</td><td>Unique merchant refund reference (idempotency token)</td></tr>
+    <tr><td><code>amount</code></td><td class="type">string</td><td class="req">Yes</td><td>Refund amount (full or partial), e.g. <code>"100.00"</code></td></tr>
+  </table>
+
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-qr/refund \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{
+    "mihpayid": "403993715535965242",
+    "token_id": "refund_001",
+    "amount": "100.00"
+  }}'</pre>
+  </div>
+
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "command": "cancel_refund_transaction",
+  "response": {{
+    "status": 1,
+    "msg": "Refund Request Queued",
+    "request_id": "1234567",
+    "bank_ref_num": "..."
+  }}
+}}</pre>
+  </div>
+</div>
+</section>
+
+<section id="payu-qr-refund-status">
+<h2>Refund Status</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-qr/refund-status</span>
+  <p class="ep-desc">Check the status of a refund/cancel request via PayU's <code>check_action_status</code> command.</p>
+
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>mihpayid</code></td><td class="type">string</td><td class="req">Yes</td><td>PayU transaction id the refund was raised against</td></tr>
+    <tr><td><code>request_id</code></td><td class="type">string</td><td class="opt">No</td><td>Refund request id to narrow the lookup</td></tr>
+  </table>
+
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-qr/refund-status \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{ "mihpayid": "403993715535965242", "request_id": "1234567" }}'</pre>
+  </div>
+
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "command": "check_action_status",
+  "response": {{
+    "status": 1,
+    "msg": "Refund status fetched",
+    "transaction_details": {{ "request_id": "1234567", "status": "success" }}
+  }}
 }}</pre>
   </div>
 </div>
