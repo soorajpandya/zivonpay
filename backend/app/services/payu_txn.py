@@ -18,19 +18,24 @@ Reference: https://docs.payu.in/reference/verify_payment_api
 
 import json
 import logging
+from email.utils import formatdate
 from typing import Any, Dict, List, Optional
 
 import httpx
 
 from app.config import settings
 from app.core.exceptions import UpstreamServiceError, UpstreamTimeoutError
-from app.services.payu import generate_command_hash, normalize_amount
+from app.services.payu import generate_command_hash, normalize_amount, settlement_hmac_authorization
 
 logger = logging.getLogger(__name__)
 
 # PayU postservice (info) endpoints — distinct from the _payment host.
 PAYU_TEST_POSTSERVICE_URL = "https://test.payu.in/merchant/postservice.php?form=2"
 PAYU_PROD_POSTSERVICE_URL = "https://info.payu.in/merchant/postservice.php?form=2"
+
+# Settlement reconciliation hosts (HMAC auth, distinct from postservice).
+PAYU_TEST_SETTLEMENT_BASE = "https://apitest.payu.in"
+PAYU_PROD_SETTLEMENT_BASE = "https://info.payu.in"
 
 
 def postservice_endpoint(environment: Optional[str] = None) -> str:
@@ -49,6 +54,11 @@ class PayUTransactionService:
 
     def __init__(self):
         self.endpoint = postservice_endpoint(settings.PAYU_ENVIRONMENT)
+        self.settlement_base = (
+            PAYU_PROD_SETTLEMENT_BASE
+            if settings.PAYU_ENVIRONMENT == "production"
+            else PAYU_TEST_SETTLEMENT_BASE
+        )
         self.key = settings.PAYU_MERCHANT_KEY
         self.salt = settings.PAYU_SALT
         self.timeout = settings.PAYU_TIMEOUT
@@ -136,6 +146,7 @@ class PayUTransactionService:
         mihpayid: str,
         token_id: str,
         amount,
+        split_refund_info: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Initiate a refund (or cancel an authorized transaction).
@@ -144,12 +155,17 @@ class PayUTransactionService:
             mihpayid: PayU transaction id to refund.
             token_id: Unique merchant refund reference (idempotency token).
             amount: Refund amount (full or partial), normalized to "0.00".
+            split_refund_info: Optional split-refund breakdown posted as var8
+                for aggregator/split-settlement refunds.
         """
         amount_str = normalize_amount(amount)
+        extra: Dict[str, str] = {"var2": token_id, "var3": amount_str}
+        if split_refund_info is not None:
+            extra["var8"] = json.dumps(split_refund_info, separators=(",", ":"))
         return await self._run_command(
             command="cancel_refund_transaction",
             var1=mihpayid,
-            extra_vars={"var2": token_id, "var3": amount_str},
+            extra_vars=extra,
         )
 
     async def refund_status(self, mihpayid: str, request_id: Optional[str] = None) -> Dict[str, Any]:
@@ -337,6 +353,109 @@ class PayUTransactionService:
             command="release_settlement",
             var1=payu_id,
             extra_vars={"var2": child_mid},
+        )
+
+    async def get_split_info(self, payu_id: str) -> Dict[str, Any]:
+        """Get split info for a parent transaction (``get_split_info`` command)."""
+        return await self._run_command(command="get_split_info", var1=payu_id)
+
+    async def get_split_transactions(
+        self,
+        *,
+        date_from: str,
+        date_to: str,
+        page: int = 1,
+        page_size: int = 100,
+        merchant_key: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Fetch child or parent split transaction info (``get_split_transactions``).
+
+        ``merchant_key`` (var5): child merchant key to filter; leave empty or
+        pass the parent key to fetch the parent's own split transactions.
+        """
+        return await self._run_command(
+            command="get_split_transactions",
+            var1=date_from,
+            extra_vars={
+                "var2": date_to,
+                "var3": str(page),
+                "var4": str(page_size),
+                "var5": merchant_key or "",
+            },
+        )
+
+    async def aggregator_refund_status(self, txnid: str) -> Dict[str, Any]:
+        """Refund status for split payments (``aggregator_check_action_status_txnid``)."""
+        return await self._run_command(
+            command="aggregator_check_action_status_txnid", var1=txnid
+        )
+
+    async def _settlement_get(
+        self, path: str, *, params: Dict[str, Any], mid: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """GET a PayU Settlement API (HMAC ``Date`` + ``Authorization`` headers)."""
+        if not self.key or not self.salt:
+            raise RuntimeError("PayU credentials are not configured (PAYU_MERCHANT_KEY/PAYU_SALT)")
+
+        date_header = formatdate(usegmt=True)
+        auth = settlement_hmac_authorization(
+            merchant_key=self.key, salt=self.salt, date_header=date_header, body=""
+        )
+        headers = {
+            "Date": date_header,
+            "Authorization": auth,
+            "Accept": "application/json",
+        }
+        if mid:
+            headers["mid"] = str(mid)
+
+        url = f"{self.settlement_base}{path}"
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                resp = await client.get(url, params=params, headers=headers)
+            try:
+                return resp.json()
+            except ValueError:
+                logger.error(
+                    "PayU settlement non-JSON (%s): %s", resp.status_code, resp.text[:500]
+                )
+                raise UpstreamServiceError("Invalid response from PayU Settlement", service="PayU")
+        except httpx.TimeoutException:
+            raise UpstreamTimeoutError()
+        except httpx.RequestError as e:
+            logger.error("PayU settlement request error (%s): %s", url, e)
+            raise UpstreamServiceError("Failed to connect to PayU Settlement", service="PayU")
+
+    async def settlement_detail_range(
+        self,
+        *,
+        date_from: str,
+        date_to: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 100,
+        merchant_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Settlement reconciliation for a date range (``/settlement/range``)."""
+        params: Dict[str, Any] = {
+            "dateFrom": date_from,
+            "page": page,
+            "pageSize": page_size,
+        }
+        if date_to:
+            params["dateTo"] = date_to
+        if merchant_id:
+            params["merchantId"] = merchant_id
+        return await self._settlement_get("/settlement/range", params=params)
+
+    async def settlement_transaction_details(
+        self, *, merchant_transaction_id: str, mid: str
+    ) -> Dict[str, Any]:
+        """Settlement details for a merchant txn id (``/settlement/transactionDetails``)."""
+        return await self._settlement_get(
+            "/settlement/transactionDetails",
+            params={"merchantTransactionId": merchant_transaction_id},
+            mid=mid,
         )
 
 

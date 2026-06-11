@@ -208,16 +208,26 @@ p{{margin-bottom:14px;color:{_MUTED};font-size:15px}}
   </div>
 
   <div class="nav-group">
-    <div class="nav-label">PayU Aggregator / Marketplace</div>
+    <div class="nav-label">PayU Split Settlements</div>
     <a class="nav-link" href="#agg-overview">Overview</a>
     <a class="nav-link" href="#agg-token">Get Client Token</a>
     <a class="nav-link" href="#agg-create-child">Create Child Merchant</a>
     <a class="nav-link" href="#agg-bank">Update Bank Details</a>
-    <a class="nav-link" href="#agg-list">Fetch Child Merchants</a>
-    <a class="nav-link" href="#agg-split-during">Split During Transaction</a>
-    <a class="nav-link" href="#agg-split">Split After Transaction</a>
-    <a class="nav-link" href="#agg-transactions">Aggregator Transactions</a>
+    <a class="nav-link" href="#agg-update-sub">Update Sub-Account</a>
+    <a class="nav-link" href="#agg-list">Fetch Child Merchants (v1)</a>
+    <a class="nav-link" href="#agg-list-v3">Fetch Child Merchants (v3)</a>
+    <a class="nav-link" href="#agg-split-during-abs">Split During (Absolute)</a>
+    <a class="nav-link" href="#agg-split-during-pct">Split During (Percentage)</a>
+    <a class="nav-link" href="#agg-split-abs">Split After (Absolute)</a>
+    <a class="nav-link" href="#agg-split-pct">Split After (Percentage)</a>
+    <a class="nav-link" href="#agg-split-info">Get Split Info</a>
+    <a class="nav-link" href="#agg-transactions">Parent Transaction Info</a>
+    <a class="nav-link" href="#agg-split-txns">Child/Parent Split Txns</a>
     <a class="nav-link" href="#agg-release">Release Settlement</a>
+    <a class="nav-link" href="#agg-settlement-range">Settlement Range</a>
+    <a class="nav-link" href="#agg-settlement-txn">Settlement Txn Details</a>
+    <a class="nav-link" href="#agg-refund">Split Refund</a>
+    <a class="nav-link" href="#agg-refund-status">Split Refund Status</a>
   </div>
 
   <div class="nav-group">
@@ -1759,14 +1769,28 @@ intent = resp.json()</pre>
 <!-- ═══════════ PAYU AGGREGATOR / MARKETPLACE ═══════════ -->
 
 <section id="agg-overview">
-<h2>PayU Aggregator / Marketplace Settlement</h2>
-<p>The Aggregator (Marketplace) solution lets you (the <strong>parent / aggregator merchant</strong>) collect a single customer payment and split the settlement across multiple <strong>child merchants</strong> (sub-sellers). Your commission per sub-transaction is the <code>aggregatorCharges</code>; the amount settled to each child is the <code>aggregatorSubAmt</code>.</p>
-<p>There are two integration paths:</p>
-<ul>
-  <li><strong>Child merchant onboarding</strong> — create child merchants and add their settlement bank details (OAuth client token from PayU's Hub, scope <code>refer_child_merchant</code> / <code>fetch_child_merchants</code>).</li>
-  <li><strong>Split settlements</strong> — split a payment either <em>during</em> the transaction (<code>splitRequest</code> on Collect) or <em>after</em> it is captured (<code>payment_split</code>), then release each child sub-payment with <code>release_settlement</code>.</li>
-</ul>
-<p class="note">All ZivonPay endpoints below require merchant auth (HTTP Basic <code>key_id:key_secret</code>). The aggregator OAuth client credentials and parent MID/UUID are configured server-side; the salt and client secret are never exposed.</p>
+<h2>PayU Split Settlements (Aggregator / Marketplace)</h2>
+<p>Map of PayU's <strong>Split Settlements</strong> sidebar to ZivonPay API endpoints. Dashboard-only flows (activate split, bulk upload, login to child dashboard) are done in the PayU merchant panel — not exposed as REST here.</p>
+<table class="param-table">
+  <tr><th>PayU doc section</th><th>ZivonPay endpoint</th></tr>
+  <tr><td>Get Client Token</td><td><code>POST /v1/payu-aggregator/token</code></td></tr>
+  <tr><td>Create Child Merchant</td><td><code>POST /v1/payu-aggregator/child-merchants</code></td></tr>
+  <tr><td>Update Bank Details</td><td><code>PUT /v1/payu-aggregator/child-merchants/{{uuid}}/bank-details</code></td></tr>
+  <tr><td>Update Sub-Account Details</td><td><code>PUT /v1/payu-aggregator/child-merchants/{{uuid}}</code></td></tr>
+  <tr><td>Fetch Child Merchants (v1)</td><td><code>GET /v1/payu-aggregator/child-merchants</code></td></tr>
+  <tr><td>Sub Account Listing v3</td><td><code>GET /v1/payu-aggregator/child-merchants/search</code></td></tr>
+  <tr><td>Absolute / Percentage Split During Transaction</td><td><code>POST /v1/payu/collect</code> + <code>splitRequest</code></td></tr>
+  <tr><td>Absolute / Percentage Split After Transaction</td><td><code>POST /v1/payu-aggregator/split</code> (<code>split_type</code>)</td></tr>
+  <tr><td>Get Split Info</td><td><code>POST /v1/payu-aggregator/split-info</code></td></tr>
+  <tr><td>Get Aggregator/Parent Transaction Info</td><td><code>POST /v1/payu-aggregator/transactions</code></td></tr>
+  <tr><td>Get Child/Parent Split Transaction Info</td><td><code>POST /v1/payu-aggregator/split-transactions</code></td></tr>
+  <tr><td>Release Settlement</td><td><code>POST /v1/payu-aggregator/release-settlement</code></td></tr>
+  <tr><td>Settlement Detail Range</td><td><code>GET /v1/payu-aggregator/settlement/range</code></td></tr>
+  <tr><td>Settlement Transaction Details</td><td><code>GET /v1/payu-aggregator/settlement/transaction-details</code></td></tr>
+  <tr><td>Refund Split Transaction (var8)</td><td><code>POST /v1/payu-aggregator/refund</code></td></tr>
+  <tr><td>Split Refund Status</td><td><code>POST /v1/payu-aggregator/refund-status</code></td></tr>
+</table>
+<p class="note">All endpoints require HTTP Basic <code>key_id:key_secret</code>. Aggregator Hub OAuth credentials and parent MID/UUID are configured server-side (<code>PAYU_AGG_*</code>).</p>
 </section>
 
 <section id="agg-token">
@@ -1849,8 +1873,17 @@ intent = resp.json()</pre>
 </div>
 </section>
 
+<section id="agg-update-sub">
+<h2>Update Sub-Account Details</h2>
+<div class="endpoint">
+  <span class="method method-put">PUT</span>
+  <span class="ep-url">/v1/payu-aggregator/child-merchants/{{product_account_uuid}}</span>
+  <p class="ep-desc">Update arbitrary child-merchant fields (name, mobile, business fields, bank_detail, etc.). Any PayU <code>product_account</code> fields are passed through.</p>
+</div>
+</section>
+
 <section id="agg-list">
-<h2>Fetch Child Merchants (Sub Account Listing)</h2>
+<h2>Fetch Child Merchants — Sub Account Listing v1</h2>
 <div class="endpoint">
   <span class="method method-get">GET</span>
   <span class="ep-url">/v1/payu-aggregator/child-merchants</span>
@@ -1863,8 +1896,22 @@ intent = resp.json()</pre>
 </div>
 </section>
 
-<section id="agg-split-during">
-<h2>Split During Transaction</h2>
+<section id="agg-list-v3">
+<h2>Fetch Child Merchants — Sub Account Listing v3</h2>
+<div class="endpoint">
+  <span class="method method-get">GET</span>
+  <span class="ep-url">/v1/payu-aggregator/child-merchants/search</span>
+  <p class="ep-desc">Search/filter child merchants. Query params: <code>identifier</code> (parent MID/UUID), <code>search_term</code> (identifier | phone | email | name | brand_name | merchant_defined_identifier), <code>search_text</code>.</p>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl "https://api.zivonpay.com/v1/payu-aggregator/child-merchants/search?search_term=email&amp;search_text=child@example.com" \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret"</pre>
+  </div>
+</div>
+</section>
+
+<section id="agg-split-during-abs">
+<h2>Absolute Split During Transaction</h2>
 <div class="endpoint">
   <span class="method method-post">POST</span>
   <span class="ep-url">/v1/payu/collect</span>
@@ -1892,8 +1939,37 @@ intent = resp.json()</pre>
 </div>
 </section>
 
-<section id="agg-split">
-<h2>Split After Transaction</h2>
+<section id="agg-split-during-pct">
+<h2>Split by Percentage During Transaction</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu/collect</span>
+  <p class="ep-desc">Same as absolute split during transaction, but set <code>splitRequest.type</code> to <code>percentage</code> and ensure <code>aggregatorSubAmt</code> values sum to 100.</p>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu/collect \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{
+    "amount": "100.00",
+    "productinfo": "Order #1234",
+    "firstname": "John",
+    "email": "john@example.com",
+    "phone": "9999999999",
+    "splitRequest": {{
+      "type": "percentage",
+      "splitInfo": {{
+        "childKey1": {{ "aggregatorSubTxnId": "sub-1", "aggregatorSubAmt": "60" }},
+        "childKey2": {{ "aggregatorSubTxnId": "sub-2", "aggregatorSubAmt": "40" }}
+      }}
+    }}
+  }}'</pre>
+  </div>
+</div>
+</section>
+
+<section id="agg-split-abs">
+<h2>Absolute Split After Transaction</h2>
 <div class="endpoint">
   <span class="method method-post">POST</span>
   <span class="ep-url">/v1/payu-aggregator/split</span>
@@ -1918,6 +1994,45 @@ intent = resp.json()</pre>
       "qOoYIv": {{ "aggregatorSubTxnId": "Child202", "aggregatorSubAmt": "50" }}
     }}
   }}'</pre>
+  </div>
+</div>
+</section>
+
+<section id="agg-split-pct">
+<h2>Split by Percentage After Transaction</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-aggregator/split</span>
+  <p class="ep-desc">Same endpoint as absolute split after transaction; set <code>split_type</code> to <code>percentage</code>.</p>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-aggregator/split \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{
+    "payu_id": "403993715525003544",
+    "split_type": "percentage",
+    "split_info": {{
+      "imAJ7I": {{ "aggregatorSubTxnId": "Child101", "aggregatorSubAmt": "50" }},
+      "qOoYIv": {{ "aggregatorSubTxnId": "Child202", "aggregatorSubAmt": "50" }}
+    }}
+  }}'</pre>
+  </div>
+</div>
+</section>
+
+<section id="agg-split-info">
+<h2>Get Split Info</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-aggregator/split-info</span>
+  <p class="ep-desc">Get split info for a parent transaction (<code>get_split_info</code> command).</p>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-aggregator/split-info \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{ "payu_id": "403993715532325577" }}'</pre>
   </div>
 </div>
 </section>
@@ -1949,6 +2064,26 @@ intent = resp.json()</pre>
 </div>
 </section>
 
+<section id="agg-split-txns">
+<h2>Get Child/Parent Split Transaction Info</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-aggregator/split-transactions</span>
+  <p class="ep-desc">Fetch child or parent split transactions for a date range (<code>get_split_transactions</code>). Optional <code>merchant_key</code> filters to a child key.</p>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-aggregator/split-transactions \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{
+    "date_from": "2026-06-01 00:00",
+    "date_to": "2026-06-01 23:59",
+    "merchant_key": "childKey1"
+  }}'</pre>
+  </div>
+</div>
+</section>
+
 <section id="agg-release">
 <h2>Release Settlement</h2>
 <div class="endpoint">
@@ -1970,6 +2105,74 @@ intent = resp.json()</pre>
     "payu_id": "412345678912384152",
     "child_mid": "39032915"
   }}'</pre>
+  </div>
+</div>
+</section>
+
+<section id="agg-settlement-range">
+<h2>Settlement Detail Range</h2>
+<div class="endpoint">
+  <span class="method method-get">GET</span>
+  <span class="ep-url">/v1/payu-aggregator/settlement/range</span>
+  <p class="ep-desc">Settlement reconciliation for a date range. Query: <code>dateFrom</code>, <code>dateTo</code> (max 3-day range), <code>page</code>, <code>pageSize</code>, <code>merchantId</code>.</p>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl "https://api.zivonpay.com/v1/payu-aggregator/settlement/range?dateFrom=2026-06-01&amp;dateTo=2026-06-01&amp;page=1&amp;pageSize=100" \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret"</pre>
+  </div>
+</div>
+</section>
+
+<section id="agg-settlement-txn">
+<h2>Settlement Transaction Details</h2>
+<div class="endpoint">
+  <span class="method method-get">GET</span>
+  <span class="ep-url">/v1/payu-aggregator/settlement/transaction-details</span>
+  <p class="ep-desc">Settlement details for a merchant txn id. Query: <code>merchantTransactionId</code>, <code>mid</code> (PayU merchant id).</p>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl "https://api.zivonpay.com/v1/payu-aggregator/settlement/transaction-details?merchantTransactionId=pay_a1b2c3&amp;mid=13376506" \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret"</pre>
+  </div>
+</div>
+</section>
+
+<section id="agg-refund">
+<h2>Refund Split Transaction</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-aggregator/refund</span>
+  <p class="ep-desc">Refund a split-settlement transaction with per-child breakdown (<code>var8</code> on <code>cancel_refund_transaction</code>).</p>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-aggregator/refund \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{
+    "mihpayid": "403993715525003544",
+    "token_id": "refund_split_001",
+    "amount": "100.00",
+    "split_refund_info": {{
+      "childKey1": {{ "amount": 60, "aggregatorRefundAmount": 10 }},
+      "childKey2": {{ "amount": 40, "aggregatorRefundAmount": 0 }}
+    }}
+  }}'</pre>
+  </div>
+</div>
+</section>
+
+<section id="agg-refund-status">
+<h2>Split Refund Status</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-aggregator/refund-status</span>
+  <p class="ep-desc">Check refund status for a split payment (<code>aggregator_check_action_status_txnid</code>).</p>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-aggregator/refund-status \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{ "txnid": "pay_a1b2c3d4e5f6" }}'</pre>
   </div>
 </div>
 </section>

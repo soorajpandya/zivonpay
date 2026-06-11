@@ -35,6 +35,29 @@ def _sha512(raw: str) -> str:
     return hashlib.sha512(raw.encode("utf-8")).hexdigest()
 
 
+def settlement_hmac_authorization(
+    *,
+    merchant_key: str,
+    salt: str,
+    date_header: str,
+    body: str = "",
+) -> str:
+    """
+    Build the HMAC Authorization header for PayU Settlement APIs.
+
+    Hash: ``sha512(<body> + '|' + date + '|' + salt)``
+
+    Header format::
+        hmac username="<key>", algorithm="sha512", headers="date", signature="<hash>"
+    """
+    hash_string = f"{body}|{date_header}|{salt}"
+    signature = _sha512(hash_string)
+    return (
+        f'hmac username="{merchant_key}", algorithm="sha512", '
+        f'headers="date", signature="{signature}"'
+    )
+
+
 def generate_payment_hash(
     params: Dict[str, str],
     salt: str,

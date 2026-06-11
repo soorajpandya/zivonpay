@@ -154,6 +154,7 @@ class PayUAggregatorService:
         *,
         scope: str,
         json_body: Optional[Any] = None,
+        params: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Make a Bearer-authenticated onboarding request and return parsed JSON."""
         token = await self._bearer(scope)
@@ -164,7 +165,7 @@ class PayUAggregatorService:
         }
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                resp = await client.request(method, url, json=json_body, headers=headers)
+                resp = await client.request(method, url, json=json_body, params=params, headers=headers)
         except httpx.TimeoutException:
             raise UpstreamTimeoutError()
         except httpx.RequestError as e:
@@ -227,9 +228,29 @@ class PayUAggregatorService:
             json_body={"product_account": {"bank_detail": bank_detail}},
         )
 
+    async def update_sub_account(
+        self, *, product_account_uuid: str, fields: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Update arbitrary child-merchant (sub-account) details via the same
+        ``PUT /api/v3/product_accounts/{uuid}`` endpoint used for bank details.
+
+        ``fields`` is the inner ``product_account`` object (e.g. name, email,
+        mobile, bank_detail, business_* fields).
+        """
+        url = f"{self.onboarding_base}/api/v3/product_accounts/{product_account_uuid}"
+        logger.info(
+            "PayU aggregator update sub-account",
+            extra={"uuid": product_account_uuid, "fields": list(fields.keys())},
+        )
+        return await self._request(
+            "PUT", url, scope=SCOPE_REFER, json_body={"product_account": fields}
+        )
+
     async def list_sub_accounts(self, parent_uuid: Optional[str] = None) -> Dict[str, Any]:
         """
-        Fetch all child merchants (sub accounts) linked to the parent merchant.
+        Fetch all child merchants (sub accounts) linked to the parent merchant
+        (v1 endpoint).
 
         Uses the configured parent UUID when ``parent_uuid`` is not provided.
         """
@@ -241,6 +262,38 @@ class PayUAggregatorService:
             )
         url = f"{self.onboarding_base}/api/v1/merchants/{uuid}/sub_accounts"
         return await self._request("GET", url, scope=SCOPE_FETCH)
+
+    async def list_sub_accounts_v3(
+        self,
+        identifier: Optional[str] = None,
+        *,
+        search_term: Optional[str] = None,
+        search_text: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Fetch child merchants via the Sub Account Listing API v3, with optional
+        search.
+
+        Args:
+            identifier: Parent merchant MID/UUID in the path (defaults to the
+                configured parent UUID, then parent MID).
+            search_term: One of identifier, phone, email, name, brand_name,
+                merchant_defined_identifier.
+            search_text: The text to search for (used with search_term).
+        """
+        ident = identifier or self.parent_uuid or self.parent_mid
+        if not ident:
+            raise RuntimeError(
+                "Parent merchant UUID/MID not configured "
+                "(PAYU_AGG_PARENT_UUID / PAYU_AGG_PARENT_MID) and none provided"
+            )
+        url = f"{self.onboarding_base}/api/v3/product_accounts/{ident}/sub_accounts"
+        params = {}
+        if search_term:
+            params["search_term"] = search_term
+        if search_text:
+            params["search_text"] = search_text
+        return await self._request("GET", url, scope=SCOPE_FETCH, params=params or None)
 
 
 # Global service instance

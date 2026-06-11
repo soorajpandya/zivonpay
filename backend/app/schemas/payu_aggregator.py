@@ -91,6 +91,24 @@ class UpdateBankDetailsRequest(BaseModel):
         }
 
 
+class UpdateSubAccountRequest(BaseModel):
+    """
+    PUT /v1/payu-aggregator/child-merchants/{uuid} — update arbitrary
+    child-merchant (sub-account) details. Any PayU product_account fields
+    (name, email, mobile, bank_detail, business_* etc.) are passed through.
+    """
+
+    class Config:
+        extra = "allow"
+        json_schema_extra = {
+            "example": {
+                "name": "Updated Name",
+                "mobile": "9876543210",
+                "monthly_expected_volume": 120000,
+            }
+        }
+
+
 # ── Split settlements ────────────────────────────────────────────────────────
 
 
@@ -161,6 +179,113 @@ class AggregatorTransactionsRequest(BaseModel):
                 "page_size": 100,
             }
         }
+
+
+class SplitInfoRequest(BaseModel):
+    """POST /v1/payu-aggregator/split-info — get split info for a parent txn."""
+
+    payu_id: str = Field(..., description="PayU id (mihpayid) of the parent transaction")
+
+    class Config:
+        json_schema_extra = {"example": {"payu_id": "403993715532325577"}}
+
+
+class SplitTransactionsRequest(BaseModel):
+    """
+    POST /v1/payu-aggregator/split-transactions — child/parent split txn info
+    (get_split_transactions command).
+    """
+
+    date_from: str = Field(..., description="Start datetime 'YYYY-MM-DD HH:MM'")
+    date_to: str = Field(..., description="End datetime 'YYYY-MM-DD HH:MM'")
+    page: int = Field(default=1, ge=1)
+    page_size: int = Field(default=100, ge=1, le=1000)
+    merchant_key: Optional[str] = Field(
+        default=None,
+        description="Child merchant key to filter; omit or use parent key for parent's own splits",
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "date_from": "2026-06-01 00:00",
+                "date_to": "2026-06-01 23:59",
+                "page": 1,
+                "page_size": 100,
+                "merchant_key": "childKey1",
+            }
+        }
+
+
+class SettlementRangeRequest(BaseModel):
+    """GET /v1/payu-aggregator/settlement/range — settlement reconciliation."""
+
+    date_from: str = Field(..., alias="dateFrom", description="Start date YYYY-MM-DD")
+    date_to: Optional[str] = Field(default=None, alias="dateTo", description="End date YYYY-MM-DD (max 3-day range)")
+    page: int = Field(default=1, ge=1)
+    page_size: int = Field(default=100, ge=1, le=50000, alias="pageSize")
+    merchant_id: Optional[str] = Field(default=None, alias="merchantId")
+
+    class Config:
+        populate_by_name = True
+
+
+class SettlementTransactionDetailsRequest(BaseModel):
+    """GET /v1/payu-aggregator/settlement/transaction-details"""
+
+    merchant_transaction_id: str = Field(..., description="Merchant txnid")
+    mid: str = Field(..., description="PayU merchant id (MID)")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "merchant_transaction_id": "pay_a1b2c3d4e5f6",
+                "mid": "13376506",
+            }
+        }
+
+
+class SplitRefundSegment(BaseModel):
+    amount: float = Field(..., description="Refund amount for this child")
+    aggregatorRefundAmount: float = Field(
+        default=0, description="Aggregator commission portion to refund"
+    )
+
+
+class SplitRefundRequest(BaseModel):
+    """
+    POST /v1/payu-aggregator/refund — refund a split transaction (var8 breakdown).
+    """
+
+    mihpayid: str = Field(..., description="PayU transaction id to refund")
+    token_id: str = Field(..., description="Unique merchant refund reference")
+    amount: str = Field(..., description="Total refund amount, e.g. '100.00'")
+    split_refund_info: Dict[str, SplitRefundSegment] = Field(
+        ...,
+        description="Map of child merchant key -> {amount, aggregatorRefundAmount}",
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "mihpayid": "403993715525003544",
+                "token_id": "refund_split_001",
+                "amount": "100.00",
+                "split_refund_info": {
+                    "childKey1": {"amount": 60, "aggregatorRefundAmount": 10},
+                    "childKey2": {"amount": 40, "aggregatorRefundAmount": 0},
+                },
+            }
+        }
+
+
+class SplitRefundStatusRequest(BaseModel):
+    """POST /v1/payu-aggregator/refund-status — split refund status by txnid."""
+
+    txnid: str = Field(..., description="Merchant txnid used when creating the payment")
+
+    class Config:
+        json_schema_extra = {"example": {"txnid": "pay_a1b2c3d4e5f6"}}
 
 
 class ReleaseSettlementRequest(BaseModel):
