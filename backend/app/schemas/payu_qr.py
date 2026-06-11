@@ -6,7 +6,7 @@ pg=DBQR / bankcode=UPIDBQR / txn_s2s_flow=4. The returned `qr_string` is a
 `upi://pay?...` deeplink that can be rendered as a QR for offline collection.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import Optional, Dict, Any, List
 
 
@@ -316,28 +316,47 @@ class BharatQRPaymentInitRequest(BaseModel):
 
 
 class PayUTransactionResponse(BaseModel):
-    """Raw PayU postservice response passthrough."""
+    """
+    PayU postservice/QR response wrapper.
+
+    The top-level ``status`` reflects PayU's actual outcome (derived from the
+    raw response), so a business rejection from PayU surfaces as
+    ``status: "failed"`` along with ``message`` and ``error_code``.
+    """
 
     status: str = "success"
     command: str = Field(..., description="The PayU command that was executed")
+    message: Optional[str] = Field(default=None, description="PayU's message, if any")
+    error_code: Optional[str] = Field(default=None, description="PayU's error code, if any")
     response: Dict[str, Any] = Field(..., description="PayU's raw JSON response")
+
+    @model_validator(mode="after")
+    def _derive_outcome(self):
+        raw = self.response or {}
+        raw_status = raw.get("status")
+
+        failed = False
+        if isinstance(raw_status, str):
+            failed = raw_status.strip().lower() in {"failed", "failure", "error", "0"}
+        elif isinstance(raw_status, (int, float)):
+            failed = int(raw_status) == 0
+
+        self.status = "failed" if failed else "success"
+        self.message = raw.get("message") or raw.get("msg")
+        self.error_code = raw.get("errorCode") or raw.get("error_code")
+        return self
 
     class Config:
         json_schema_extra = {
             "example": {
-                "status": "success",
-                "command": "verify_payment",
+                "status": "failed",
+                "command": "generate_insta_account",
+                "message": "isAggregator parameter not configured for the merchant",
+                "error_code": "E2013",
                 "response": {
-                    "status": 1,
-                    "msg": "1 out of 1 Transactions Fetched Successfully",
-                    "transaction_details": {
-                        "pay_a1b2c3d4e5f6": {
-                            "mihpayid": "403993715535965242",
-                            "status": "success",
-                            "amt": "100.00",
-                            "mode": "UPI",
-                        }
-                    },
+                    "status": "failed",
+                    "message": "isAggregator parameter not configured for the merchant",
+                    "errorCode": "E2013",
                 },
             }
         }
