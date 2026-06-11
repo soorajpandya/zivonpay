@@ -16,8 +16,9 @@ All requests are SHA-512 signed server-side using the command hash
 Reference: https://docs.payu.in/reference/verify_payment_api
 """
 
+import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import httpx
 
@@ -165,6 +166,100 @@ class PayUTransactionService:
             var1=mihpayid,
             extra_vars=extra,
         )
+
+    # ── UPI QR API suite (postservice commands with a JSON var1) ──
+
+    async def _run_json_command(
+        self,
+        *,
+        command: str,
+        var1_obj: Dict[str, Any],
+        extra_vars: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Execute a postservice command whose ``var1`` is a JSON object.
+
+        The var1 JSON is serialized once and used for BOTH the hash and the
+        posted body so they always match (PayU rejects mismatches).
+        """
+        var1 = json.dumps(var1_obj, separators=(",", ":"))
+        return await self._run_command(command=command, var1=var1, extra_vars=extra_vars)
+
+    async def generate_offline_intent_link(self, details: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate a UPI intent payment link (generate_upi_intent)."""
+        return await self._run_json_command(command="generate_upi_intent", var1_obj=details)
+
+    async def expire_intent_link(self, transaction_ids: List[str]) -> Dict[str, Any]:
+        """Expire one or more UPI intent links (expire_intent_link)."""
+        return await self._run_json_command(
+            command="expire_intent_link",
+            var1_obj={"transactionIds": ",".join(transaction_ids)},
+        )
+
+    async def insta_static_qr(self, details: Dict[str, Any], *, regenerate: bool = False) -> Dict[str, Any]:
+        """
+        Generate (or regenerate) an Insta static UPI/Bharat QR
+        (generate_insta_account). Pass regenerate=True to re-issue an
+        existing QR (sets getAccount=1).
+        """
+        payload = dict(details)
+        if regenerate:
+            payload["getAccount"] = "1"
+        return await self._run_json_command(command="generate_insta_account", var1_obj=payload)
+
+    async def deactivate_vpa(self, merchant_vpa: str, insta_product: str = "qr") -> Dict[str, Any]:
+        """Deactivate an Insta VPA / static QR (expire_insta_account)."""
+        return await self._run_json_command(
+            command="expire_insta_account",
+            var1_obj={"merchantVpa": merchant_vpa, "instaProduct": insta_product},
+        )
+
+    async def integrated_static_bharat_qr(self, details: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate an integrated static Bharat QR (generate_dynamic_bharat_qr)."""
+        return await self._run_json_command(
+            command="generate_dynamic_bharat_qr", var1_obj=details
+        )
+
+    async def print_invoice_qr(self, details: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate an invoice QR (generate_invoice_qr)."""
+        return await self._run_json_command(command="generate_invoice_qr", var1_obj=details)
+
+    async def send_invoice_sms(self, payu_id: str, phone: str) -> Dict[str, Any]:
+        """Send an invoice QR to a customer via SMS (send_sdk_message)."""
+        return await self._run_command(
+            command="send_sdk_message",
+            var1=payu_id,
+            extra_vars={"var2": phone},
+        )
+
+    async def check_qr_transaction_status(
+        self,
+        transaction_id: str,
+        payment_mode: Optional[str] = None,
+        product_type: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Check a QR/Bharat QR transaction status (check_bqr_txn_status)."""
+        extra = {}
+        if payment_mode:
+            extra["var2"] = payment_mode
+        if product_type:
+            extra["var3"] = product_type
+        return await self._run_command(
+            command="check_bqr_txn_status",
+            var1=transaction_id,
+            extra_vars=extra or None,
+        )
+
+    async def cancel_qr_transaction(
+        self,
+        transaction_id: str,
+        product_type: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Cancel an in-progress QR transaction (cancel_qr_payment)."""
+        var1_obj: Dict[str, Any] = {"transactionId": transaction_id}
+        if product_type:
+            var1_obj["product_type"] = product_type
+        return await self._run_json_command(command="cancel_qr_payment", var1_obj=var1_obj)
 
 
 # Global service instance

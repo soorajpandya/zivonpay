@@ -173,8 +173,18 @@ p{{margin-bottom:14px;color:{_MUTED};font-size:15px}}
   </div>
 
   <div class="nav-group">
-    <div class="nav-label">PayU Dynamic QR</div>
+    <div class="nav-label">PayU UPI QR APIs</div>
     <a class="nav-link" href="#payu-qr">Create Dynamic QR</a>
+    <a class="nav-link" href="#payu-qr-intent-link">Offline Intent Link</a>
+    <a class="nav-link" href="#payu-qr-intent-expire">Expire Intent Link</a>
+    <a class="nav-link" href="#payu-qr-insta">Insta Static QR</a>
+    <a class="nav-link" href="#payu-qr-deactivate">Deactivate VPA</a>
+    <a class="nav-link" href="#payu-qr-bharat">Static Bharat QR</a>
+    <a class="nav-link" href="#payu-qr-bharat-pay">Bharat QR Payment Init</a>
+    <a class="nav-link" href="#payu-qr-invoice">Print Invoice QR</a>
+    <a class="nav-link" href="#payu-qr-invoice-sms">Send Invoice QR SMS</a>
+    <a class="nav-link" href="#payu-qr-status">Transaction Status</a>
+    <a class="nav-link" href="#payu-qr-cancel">Cancel QR Transaction</a>
     <a class="nav-link" href="#payu-qr-verify">Verify Payment</a>
     <a class="nav-link" href="#payu-qr-check">Check Payment</a>
     <a class="nav-link" href="#payu-qr-refund">Refund Transaction</a>
@@ -1077,6 +1087,267 @@ intent = resp.json()</pre>
   </div>
 
   <div class="info-box">After generating the QR, use the transaction APIs below to track payment and issue refunds. These run over PayU's <code>postservice</code> command API and work for Collect and UPI Intent transactions too.</div>
+</div>
+</section>
+
+<section id="payu-qr-intent-link">
+<h2>Offline Intent Link Generation</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-qr/intent-link</span>
+  <p class="ep-desc">Generate a UPI intent payment link you can share with customers (PayU <code>generate_upi_intent</code>). Optional PayU fields (txnNote, gst, refUrl, etc.) are passed through.</p>
+
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>transactionId</code></td><td class="type">string</td><td class="req">Yes</td><td>Unique merchant transaction id (&le; 40 chars)</td></tr>
+    <tr><td><code>transactionAmount</code></td><td class="type">string</td><td class="req">Yes</td><td>Amount &ge; 1.00</td></tr>
+    <tr><td><code>merchantVpa</code>, <code>expiryTime</code>, <code>txnNote</code>, <code>name</code>, <code>phone</code>, <code>email</code></td><td class="type">mixed</td><td class="opt">No</td><td>Optional QR/customer details</td></tr>
+  </table>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-qr/intent-link \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{ "transactionId": "intent_001", "transactionAmount": "100.00", "expiryTime": 3600 }}'</pre>
+  </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "command": "generate_upi_intent",
+  "response": {{ "status": "success", "message": "Intent Link generated", "link": "https://secure.payu.in/omni?id=000H" }}
+}}</pre>
+  </div>
+</div>
+</section>
+
+<section id="payu-qr-intent-expire">
+<h2>Expire Intent Link</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-qr/intent-link/expire</span>
+  <p class="ep-desc">Expire one or more UPI intent links (PayU <code>expire_intent_link</code>). Up to 100 transaction ids per call.</p>
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>transaction_ids</code></td><td class="type">string[]</td><td class="req">Yes</td><td>Transaction ids to expire (max 100)</td></tr>
+  </table>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-qr/intent-link/expire \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{ "transaction_ids": ["intent_001", "intent_002"] }}'</pre>
+  </div>
+</div>
+</section>
+
+<section id="payu-qr-insta">
+<h2>Insta Static QR Generation / Regeneration</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-qr/insta-static-qr</span>
+  <p class="ep-desc">Generate a static UPI/Bharat QR (PayU <code>generate_insta_account</code>). Set <code>regenerate: true</code> to re-issue an existing QR. Extra PayU fields are passed through.</p>
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>merchantVpa</code></td><td class="type">string</td><td class="opt">No</td><td>VPA to associate with the static QR</td></tr>
+    <tr><td><code>name</code>, <code>qrType</code>, <code>city</code>, <code>pinCode</code>, <code>address</code>, <code>instaProduct</code>, <code>outputType</code></td><td class="type">string</td><td class="opt">No</td><td>QR/merchant details (qrType: upi/bharatqr, outputType: string/base64/image)</td></tr>
+    <tr><td><code>regenerate</code></td><td class="type">boolean</td><td class="opt">No</td><td>Re-issue an existing QR (sets getAccount=1)</td></tr>
+  </table>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-qr/insta-static-qr \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{ "merchantVpa": "yourqr.merchant@indus", "name": "Acme Store", "qrType": "upi", "outputType": "string" }}'</pre>
+  </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "command": "generate_insta_account",
+  "response": {{ "qrString": "upi://pay?pa=...", "qrId": "STQ9B...729", "merchantVpa": "testqr.6879.prod4@indus" }}
+}}</pre>
+  </div>
+</div>
+</section>
+
+<section id="payu-qr-deactivate">
+<h2>Insta Deactivate VPA</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-qr/deactivate-vpa</span>
+  <p class="ep-desc">Deactivate an Insta VPA / static QR (PayU <code>expire_insta_account</code>).</p>
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>merchantVpa</code></td><td class="type">string</td><td class="req">Yes</td><td>VPA to deactivate</td></tr>
+    <tr><td><code>instaProduct</code></td><td class="type">string</td><td class="opt">No</td><td>Insta product (default <code>qr</code>)</td></tr>
+  </table>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-qr/deactivate-vpa \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{ "merchantVpa": "yourqr.merchant@indus", "instaProduct": "qr" }}'</pre>
+  </div>
+</div>
+</section>
+
+<section id="payu-qr-bharat">
+<h2>Integrated Static Bharat QR Generation</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-qr/bharat-qr</span>
+  <p class="ep-desc">Generate an integrated static Bharat QR (PayU <code>generate_dynamic_bharat_qr</code>). Extra PayU fields (qrName, qrCity, customer details, GST, etc.) are passed through.</p>
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>transactionId</code></td><td class="type">string</td><td class="req">Yes</td><td>Unique merchant transaction id</td></tr>
+    <tr><td><code>transactionAmount</code></td><td class="type">string</td><td class="req">Yes</td><td>Amount &ge; 1.00</td></tr>
+    <tr><td><code>merchantVpa</code>, <code>expiryTime</code>, <code>qrName</code>, <code>qrCity</code>, <code>qrPinCode</code>, <code>outputType</code></td><td class="type">mixed</td><td class="opt">No</td><td>QR/customer details</td></tr>
+  </table>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-qr/bharat-qr \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{ "transactionId": "bqr_001", "transactionAmount": "100.00", "outputType": "string" }}'</pre>
+  </div>
+</div>
+</section>
+
+<section id="payu-qr-bharat-pay">
+<h2>Payment Initiation — Integrated Bharat QR</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-qr/bharat-qr/initiate-payment</span>
+  <p class="ep-desc">Initiate a payment against an integrated static Bharat QR terminal (PayU <code>/QrPayment</code>). Only one in-progress payment per <code>qrId</code> at a time.</p>
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>qr_id</code></td><td class="type">string</td><td class="req">Yes</td><td>Reference id embedded in the QR</td></tr>
+    <tr><td><code>amount</code></td><td class="type">string</td><td class="req">Yes</td><td>Amount, e.g. <code>"100.00"</code></td></tr>
+    <tr><td><code>productinfo</code>, <code>firstname</code>, <code>email</code>, <code>phone</code></td><td class="type">string</td><td class="req">Yes</td><td>Order / customer details</td></tr>
+    <tr><td><code>lastname</code>, <code>txnid</code>, <code>expiry_time</code>, <code>udf3</code>..<code>udf5</code></td><td class="type">mixed</td><td class="opt">No</td><td>Optional fields</td></tr>
+  </table>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-qr/bharat-qr/initiate-payment \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{
+    "qr_id": "qr123",
+    "amount": "100.00",
+    "productinfo": "Order #1234",
+    "firstname": "John",
+    "email": "john@example.com",
+    "phone": "9999999999"
+  }}'</pre>
+  </div>
+</div>
+</section>
+
+<section id="payu-qr-invoice">
+<h2>Print Invoice QR</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-qr/invoice-qr</span>
+  <p class="ep-desc">Generate an invoice QR (PayU <code>generate_invoice_qr</code>). Extra PayU fields (gst, invoiceNo, invoiceDate, etc.) are passed through.</p>
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>transactionId</code></td><td class="type">string</td><td class="req">Yes</td><td>Unique merchant transaction id</td></tr>
+    <tr><td><code>transactionAmount</code></td><td class="type">string</td><td class="req">Yes</td><td>Amount &ge; 1.00</td></tr>
+    <tr><td><code>merchantVpa</code>, <code>expiryTime</code>, <code>outputType</code></td><td class="type">mixed</td><td class="opt">No</td><td>QR details</td></tr>
+  </table>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-qr/invoice-qr \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{ "transactionId": "inv_001", "transactionAmount": "100.00", "outputType": "string" }}'</pre>
+  </div>
+</div>
+</section>
+
+<section id="payu-qr-invoice-sms">
+<h2>Send Invoice QR to SMS</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-qr/invoice-qr/send-sms</span>
+  <p class="ep-desc">Send an invoice QR to a customer via SMS (PayU <code>send_sdk_message</code>).</p>
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>payu_id</code></td><td class="type">string</td><td class="req">Yes</td><td>PayU id / invoice reference</td></tr>
+    <tr><td><code>phone</code></td><td class="type">string</td><td class="req">Yes</td><td>Customer mobile number</td></tr>
+  </table>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-qr/invoice-qr/send-sms \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{ "payu_id": "13863413996", "phone": "9833208174" }}'</pre>
+  </div>
+</div>
+</section>
+
+<section id="payu-qr-status">
+<h2>Transaction Status Check (QR)</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-qr/transaction-status</span>
+  <p class="ep-desc">Check a QR/Bharat QR transaction status (PayU <code>check_bqr_txn_status</code>). If pending at PayU, PayU re-checks with the bank before responding.</p>
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>transactionId</code></td><td class="type">string</td><td class="req">Yes</td><td>Merchant transaction id to check</td></tr>
+    <tr><td><code>paymentmode</code></td><td class="type">string</td><td class="opt">No</td><td>CARD | UPI</td></tr>
+    <tr><td><code>producttype</code></td><td class="type">string</td><td class="opt">No</td><td>DBQR | ISBQR</td></tr>
+  </table>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-qr/transaction-status \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{ "transactionId": "bqr_001", "paymentmode": "UPI", "producttype": "DBQR" }}'</pre>
+  </div>
+</div>
+</section>
+
+<section id="payu-qr-cancel">
+<h2>Cancel QR Transaction</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-qr/cancel</span>
+  <p class="ep-desc">Cancel an in-progress QR transaction (PayU <code>cancel_qr_payment</code>).</p>
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>transactionId</code></td><td class="type">string</td><td class="req">Yes</td><td>Transaction id of the in-progress payment</td></tr>
+    <tr><td><code>product_type</code></td><td class="type">string</td><td class="opt">No</td><td>e.g. <code>DBQR</code></td></tr>
+  </table>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-qr/cancel \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{ "transactionId": "bqr_001", "product_type": "DBQR" }}'</pre>
+  </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "command": "cancel_qr_payment",
+  "response": {{ "status": "success", "message": "Cancellation Successful", "errorCode": "null" }}
+}}</pre>
+  </div>
 </div>
 </section>
 

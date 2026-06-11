@@ -30,6 +30,21 @@ logger = logging.getLogger(__name__)
 DBQR_PG = "DBQR"
 DBQR_BANKCODE = "UPIDBQR"
 
+# Integrated Bharat QR payment-initiation endpoints (form POST, not _payment).
+PAYU_TEST_QRPAYMENT_URL = "https://test.payu.in/QrPayment"
+PAYU_PROD_QRPAYMENT_URL = "https://secure.payu.in/QrPayment"
+
+
+def qrpayment_endpoint(environment: Optional[str] = None) -> str:
+    """Return the correct /QrPayment endpoint for the PayU environment."""
+    if environment is None:
+        environment = settings.PAYU_ENVIRONMENT
+    return (
+        PAYU_PROD_QRPAYMENT_URL
+        if environment == "production"
+        else PAYU_TEST_QRPAYMENT_URL
+    )
+
 
 class PayUQRService:
     """Server-to-server PayU Dynamic QR client."""
@@ -207,6 +222,98 @@ class PayUQRService:
             raise UpstreamTimeoutError()
         except httpx.RequestError as e:
             logger.error("PayU dynamic QR request error: %s", e, extra={"txnid": txnid})
+            raise UpstreamServiceError("Failed to connect to PayU", service="PayU")
+
+
+    async def initiate_bharat_qr_payment(
+        self,
+        *,
+        txnid: str,
+        amount,
+        qr_id: str,
+        productinfo: str,
+        firstname: str,
+        email: str,
+        phone: str,
+        lastname: str = "",
+        expiry_time: Optional[int] = None,
+        udf3: str = "",
+        udf4: str = "",
+        udf5: str = "",
+    ) -> Dict[str, Any]:
+        """
+        Initiate a payment on an integrated static Bharat QR terminal via PayU's
+        /QrPayment endpoint. Collects a single payment against the given qrId.
+
+        The request is SHA-512 signed with the standard payment hash.
+
+        Raises:
+            RuntimeError: If PayU credentials are not configured.
+            UpstreamServiceError / UpstreamTimeoutError
+        """
+        if not self.key or not self.salt:
+            raise RuntimeError("PayU credentials are not configured (PAYU_MERCHANT_KEY/PAYU_SALT)")
+
+        amount_str = normalize_amount(amount)
+
+        hash_params = {
+            "key": self.key,
+            "txnid": txnid,
+            "amount": amount_str,
+            "productinfo": productinfo,
+            "firstname": firstname,
+            "email": email,
+            "udf3": udf3,
+            "udf4": udf4,
+            "udf5": udf5,
+        }
+        hash_value = generate_payment_hash(hash_params, self.salt)
+
+        payload = {
+            "key": self.key,
+            "txnid": txnid,
+            "amount": amount_str,
+            "qrId": qr_id,
+            "productinfo": productinfo,
+            "firstname": firstname,
+            "lastname": lastname,
+            "email": email,
+            "phone": phone,
+            "UDF3": udf3,
+            "UDF4": udf4,
+            "UDF5": udf5,
+            "hash": hash_value,
+        }
+        if expiry_time:
+            payload["expirytime"] = str(expiry_time)
+
+        endpoint = qrpayment_endpoint(settings.PAYU_ENVIRONMENT)
+        headers = {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json",
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(endpoint, data=payload, headers=headers)
+            try:
+                return response.json()
+            except ValueError:
+                logger.error(
+                    "PayU QrPayment non-JSON response",
+                    extra={"txnid": txnid, "status": response.status_code,
+                           "body": response.text[:1000]},
+                )
+                raise UpstreamServiceError(
+                    "PayU returned a non-JSON response for Bharat QR payment "
+                    "initiation (the product may not be enabled).",
+                    service="PayU",
+                )
+        except httpx.TimeoutException:
+            logger.error("PayU QrPayment timeout", extra={"txnid": txnid})
+            raise UpstreamTimeoutError()
+        except httpx.RequestError as e:
+            logger.error("PayU QrPayment request error: %s", e, extra={"txnid": txnid})
             raise UpstreamServiceError("Failed to connect to PayU", service="PayU")
 
 

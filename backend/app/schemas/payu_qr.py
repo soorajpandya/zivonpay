@@ -7,7 +7,7 @@ pg=DBQR / bankcode=UPIDBQR / txn_s2s_flow=4. The returned `qr_string` is a
 """
 
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 
 class PayUQRCreate(BaseModel):
@@ -141,6 +141,177 @@ class RefundStatusRequest(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {"mihpayid": "403993715535965242", "request_id": "123456"}
+        }
+
+
+class OfflineIntentLinkRequest(BaseModel):
+    """Generate a UPI intent payment link (generate_upi_intent). Extra
+    optional PayU var1 fields (txnNote, gst, refUrl, etc.) are passed through."""
+
+    transactionId: str = Field(..., max_length=40, description="Unique merchant transaction id")
+    transactionAmount: str = Field(..., description="Amount (>= 1.00), e.g. '100.00'")
+    merchantVpa: Optional[str] = Field(default=None, description="Collecting VPA (defaults to key's VPA)")
+    expiryTime: Optional[int] = Field(default=None, description="Link validity in seconds")
+    txnNote: Optional[str] = Field(default=None)
+    name: Optional[str] = Field(default=None)
+    phone: Optional[str] = Field(default=None)
+    email: Optional[str] = Field(default=None)
+
+    class Config:
+        extra = "allow"
+        json_schema_extra = {
+            "example": {"transactionId": "intent_001", "transactionAmount": "100.00", "expiryTime": 3600}
+        }
+
+
+class ExpireIntentLinkRequest(BaseModel):
+    """Expire one or more UPI intent links (expire_intent_link)."""
+
+    transaction_ids: List[str] = Field(..., min_items=1, max_items=100, description="Transaction ids to expire (max 100)")
+
+    class Config:
+        json_schema_extra = {"example": {"transaction_ids": ["intent_001", "intent_002"]}}
+
+
+class InstaStaticQRRequest(BaseModel):
+    """Generate/regenerate an Insta static UPI/Bharat QR (generate_insta_account).
+    Extra PayU var1 fields are passed through."""
+
+    merchantVpa: Optional[str] = Field(default=None, description="VPA to associate with the static QR")
+    name: Optional[str] = Field(default=None, description="Merchant/business name")
+    qrType: str = Field(default="upi", description="QR type: upi or bharatqr")
+    instaProduct: str = Field(default="qr", description="Insta product, e.g. 'qr'")
+    outputType: str = Field(default="string", description="string | base64 | image")
+    regenerate: bool = Field(default=False, description="Regenerate an existing QR (sets getAccount=1)")
+
+    class Config:
+        extra = "allow"
+        json_schema_extra = {
+            "example": {
+                "merchantVpa": "yourqr.merchant@indus",
+                "name": "Acme Store",
+                "qrType": "upi",
+                "city": "Gurgaon",
+                "pinCode": "122002",
+                "address": "Sector 46",
+                "instaProduct": "qr",
+                "outputType": "string",
+            }
+        }
+
+
+class DeactivateVpaRequest(BaseModel):
+    """Deactivate an Insta VPA / static QR (expire_insta_account)."""
+
+    merchantVpa: str = Field(..., description="VPA to deactivate")
+    instaProduct: str = Field(default="qr", description="Insta product, e.g. 'qr'")
+
+    class Config:
+        json_schema_extra = {"example": {"merchantVpa": "yourqr.merchant@indus", "instaProduct": "qr"}}
+
+
+class IntegratedStaticBharatQRRequest(BaseModel):
+    """Generate an integrated static Bharat QR (generate_dynamic_bharat_qr).
+    Extra PayU var1 fields are passed through."""
+
+    transactionId: str = Field(..., max_length=40)
+    transactionAmount: str = Field(..., description="Amount (>= 1.00)")
+    merchantVpa: Optional[str] = Field(default=None)
+    expiryTime: Optional[int] = Field(default=None)
+    outputType: str = Field(default="string", description="string | base64 | image")
+
+    class Config:
+        extra = "allow"
+        json_schema_extra = {
+            "example": {
+                "transactionId": "bqr_001",
+                "transactionAmount": "100.00",
+                "merchantVpa": "yourqr.merchant@indus",
+                "expiryTime": 3600,
+                "qrName": "Acme",
+                "qrCity": "Gurgaon",
+                "qrPinCode": "122001",
+                "outputType": "string",
+            }
+        }
+
+
+class PrintInvoiceQRRequest(BaseModel):
+    """Generate an invoice QR (generate_invoice_qr). Extra PayU var1 fields
+    (gst, invoiceNo, etc.) are passed through."""
+
+    transactionId: str = Field(..., max_length=40)
+    transactionAmount: str = Field(..., description="Amount (>= 1.00)")
+    merchantVpa: Optional[str] = Field(default=None)
+    expiryTime: Optional[int] = Field(default=None)
+    outputType: str = Field(default="string", description="string | base64 | image")
+
+    class Config:
+        extra = "allow"
+        json_schema_extra = {
+            "example": {"transactionId": "inv_001", "transactionAmount": "100.00", "outputType": "string"}
+        }
+
+
+class SendInvoiceSmsRequest(BaseModel):
+    """Send an invoice QR to a customer via SMS (send_sdk_message)."""
+
+    payu_id: str = Field(..., description="PayU id / invoice reference returned by PayU")
+    phone: str = Field(..., pattern=r"^\d{8,15}$", description="Customer mobile number")
+
+    class Config:
+        json_schema_extra = {"example": {"payu_id": "13863413996", "phone": "9833208174"}}
+
+
+class QRTransactionStatusRequest(BaseModel):
+    """Check a QR/Bharat QR transaction status (check_bqr_txn_status)."""
+
+    transactionId: str = Field(..., description="Merchant transaction id to check")
+    paymentmode: Optional[str] = Field(default=None, description="CARD | UPI")
+    producttype: Optional[str] = Field(default=None, description="DBQR | ISBQR")
+
+    class Config:
+        json_schema_extra = {"example": {"transactionId": "bqr_001", "paymentmode": "UPI", "producttype": "DBQR"}}
+
+
+class CancelQRTransactionRequest(BaseModel):
+    """Cancel an in-progress QR transaction (cancel_qr_payment)."""
+
+    transactionId: str = Field(..., max_length=40)
+    product_type: Optional[str] = Field(default=None, description="e.g. DBQR")
+
+    class Config:
+        json_schema_extra = {"example": {"transactionId": "bqr_001", "product_type": "DBQR"}}
+
+
+class BharatQRPaymentInitRequest(BaseModel):
+    """Initiate a payment on an integrated static Bharat QR terminal (/QrPayment)."""
+
+    qr_id: str = Field(..., description="Unique reference id embedded in the QR")
+    amount: str = Field(..., description="Amount, e.g. '100.00'")
+    product_info: str = Field(..., min_length=1, max_length=100, alias="productinfo")
+    first_name: str = Field(..., min_length=1, max_length=60, alias="firstname")
+    email: str = Field(..., pattern=r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+    phone: str = Field(..., pattern=r"^\d{8,15}$")
+    last_name: str = Field(default="", alias="lastname")
+    txnid: Optional[str] = Field(default=None, max_length=40)
+    expiry_time: Optional[int] = Field(default=None, description="Transaction expiry in seconds")
+    udf3: str = Field(default="")
+    udf4: str = Field(default="")
+    udf5: str = Field(default="")
+
+    class Config:
+        populate_by_name = True
+        json_schema_extra = {
+            "example": {
+                "qr_id": "qr123",
+                "amount": "100.00",
+                "productinfo": "Order #1234",
+                "firstname": "John",
+                "email": "john@example.com",
+                "phone": "9999999999",
+                "expiry_time": 3600,
+            }
         }
 
 

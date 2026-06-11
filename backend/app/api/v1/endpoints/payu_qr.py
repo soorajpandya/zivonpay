@@ -20,6 +20,16 @@ from app.schemas.payu_qr import (
     RefundRequest,
     RefundStatusRequest,
     PayUTransactionResponse,
+    OfflineIntentLinkRequest,
+    ExpireIntentLinkRequest,
+    InstaStaticQRRequest,
+    DeactivateVpaRequest,
+    IntegratedStaticBharatQRRequest,
+    PrintInvoiceQRRequest,
+    SendInvoiceSmsRequest,
+    QRTransactionStatusRequest,
+    CancelQRTransactionRequest,
+    BharatQRPaymentInitRequest,
 )
 from app.core.exceptions import ValidationError
 from app.core.utils import generate_payment_id
@@ -199,3 +209,234 @@ async def refund_status(
         logger.error("PayU not configured: %s", e)
         raise ValidationError(str(e))
     return PayUTransactionResponse(command="check_action_status", response=result)
+
+
+# ── UPI QR API suite ──
+
+
+def _var1_from(model) -> dict:
+    """Build a PayU var1 dict from a request model, dropping control/None fields."""
+    data = model.model_dump(by_alias=True, exclude_none=True)
+    data.pop("regenerate", None)
+    return data
+
+
+@router.post(
+    "/intent-link",
+    response_model=PayUTransactionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Offline Intent Link Generation",
+    description="Generate a UPI intent payment link (generate_upi_intent) to share with customers.",
+)
+async def offline_intent_link(
+    data: OfflineIntentLinkRequest,
+    merchant: Merchant = Depends(get_current_merchant),
+):
+    """Generate an offline UPI intent payment link."""
+    try:
+        result = await payu_txn_service.generate_offline_intent_link(_var1_from(data))
+    except RuntimeError as e:
+        logger.error("PayU not configured: %s", e)
+        raise ValidationError(str(e))
+    return PayUTransactionResponse(command="generate_upi_intent", response=result)
+
+
+@router.post(
+    "/intent-link/expire",
+    response_model=PayUTransactionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Expire Intent Link",
+    description="Expire one or more UPI intent links (expire_intent_link). Max 100 per call.",
+)
+async def expire_intent_link(
+    data: ExpireIntentLinkRequest,
+    merchant: Merchant = Depends(get_current_merchant),
+):
+    """Expire UPI intent links."""
+    try:
+        result = await payu_txn_service.expire_intent_link(data.transaction_ids)
+    except RuntimeError as e:
+        logger.error("PayU not configured: %s", e)
+        raise ValidationError(str(e))
+    return PayUTransactionResponse(command="expire_intent_link", response=result)
+
+
+@router.post(
+    "/insta-static-qr",
+    response_model=PayUTransactionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Insta Static QR Generation / Regeneration",
+    description=(
+        "Generate a static UPI/Bharat QR (generate_insta_account). Set "
+        "regenerate=true to re-issue an existing QR."
+    ),
+)
+async def insta_static_qr(
+    data: InstaStaticQRRequest,
+    merchant: Merchant = Depends(get_current_merchant),
+):
+    """Generate or regenerate an Insta static QR."""
+    try:
+        result = await payu_txn_service.insta_static_qr(_var1_from(data), regenerate=data.regenerate)
+    except RuntimeError as e:
+        logger.error("PayU not configured: %s", e)
+        raise ValidationError(str(e))
+    return PayUTransactionResponse(command="generate_insta_account", response=result)
+
+
+@router.post(
+    "/deactivate-vpa",
+    response_model=PayUTransactionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Insta Deactivate VPA",
+    description="Deactivate an Insta VPA / static QR (expire_insta_account).",
+)
+async def deactivate_vpa(
+    data: DeactivateVpaRequest,
+    merchant: Merchant = Depends(get_current_merchant),
+):
+    """Deactivate an Insta VPA / static QR."""
+    try:
+        result = await payu_txn_service.deactivate_vpa(data.merchantVpa, data.instaProduct)
+    except RuntimeError as e:
+        logger.error("PayU not configured: %s", e)
+        raise ValidationError(str(e))
+    return PayUTransactionResponse(command="expire_insta_account", response=result)
+
+
+@router.post(
+    "/bharat-qr",
+    response_model=PayUTransactionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Integrated Static Bharat QR Generation",
+    description="Generate an integrated static Bharat QR (generate_dynamic_bharat_qr).",
+)
+async def integrated_static_bharat_qr(
+    data: IntegratedStaticBharatQRRequest,
+    merchant: Merchant = Depends(get_current_merchant),
+):
+    """Generate an integrated static Bharat QR."""
+    try:
+        result = await payu_txn_service.integrated_static_bharat_qr(_var1_from(data))
+    except RuntimeError as e:
+        logger.error("PayU not configured: %s", e)
+        raise ValidationError(str(e))
+    return PayUTransactionResponse(command="generate_dynamic_bharat_qr", response=result)
+
+
+@router.post(
+    "/bharat-qr/initiate-payment",
+    response_model=PayUTransactionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Payment Initiation — Integrated Bharat QR",
+    description="Initiate a payment against an integrated static Bharat QR terminal (/QrPayment).",
+)
+async def bharat_qr_payment_init(
+    data: BharatQRPaymentInitRequest,
+    merchant: Merchant = Depends(get_current_merchant),
+):
+    """Initiate a payment on a static Bharat QR."""
+    txnid = data.txnid or generate_payment_id()
+    try:
+        result = await payu_qr_service.initiate_bharat_qr_payment(
+            txnid=txnid,
+            amount=data.amount,
+            qr_id=data.qr_id,
+            productinfo=data.product_info,
+            firstname=data.first_name,
+            email=data.email,
+            phone=data.phone,
+            lastname=data.last_name,
+            expiry_time=data.expiry_time,
+            udf3=data.udf3,
+            udf4=data.udf4,
+            udf5=data.udf5,
+        )
+    except ValueError as e:
+        raise ValidationError(str(e), field="amount")
+    except RuntimeError as e:
+        logger.error("PayU not configured: %s", e)
+        raise ValidationError(str(e))
+    return PayUTransactionResponse(command="QrPayment", response=result)
+
+
+@router.post(
+    "/invoice-qr",
+    response_model=PayUTransactionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Print Invoice QR",
+    description="Generate an invoice QR (generate_invoice_qr).",
+)
+async def print_invoice_qr(
+    data: PrintInvoiceQRRequest,
+    merchant: Merchant = Depends(get_current_merchant),
+):
+    """Generate an invoice QR."""
+    try:
+        result = await payu_txn_service.print_invoice_qr(_var1_from(data))
+    except RuntimeError as e:
+        logger.error("PayU not configured: %s", e)
+        raise ValidationError(str(e))
+    return PayUTransactionResponse(command="generate_invoice_qr", response=result)
+
+
+@router.post(
+    "/invoice-qr/send-sms",
+    response_model=PayUTransactionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Send Invoice QR to SMS",
+    description="Send an invoice QR to a customer via SMS (send_sdk_message).",
+)
+async def send_invoice_sms(
+    data: SendInvoiceSmsRequest,
+    merchant: Merchant = Depends(get_current_merchant),
+):
+    """Send an invoice QR to a customer via SMS."""
+    try:
+        result = await payu_txn_service.send_invoice_sms(data.payu_id, data.phone)
+    except RuntimeError as e:
+        logger.error("PayU not configured: %s", e)
+        raise ValidationError(str(e))
+    return PayUTransactionResponse(command="send_sdk_message", response=result)
+
+
+@router.post(
+    "/transaction-status",
+    response_model=PayUTransactionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Transaction Status Check (QR)",
+    description="Check a QR/Bharat QR transaction status (check_bqr_txn_status).",
+)
+async def qr_transaction_status(
+    data: QRTransactionStatusRequest,
+    merchant: Merchant = Depends(get_current_merchant),
+):
+    """Check a QR transaction status."""
+    try:
+        result = await payu_txn_service.check_qr_transaction_status(
+            data.transactionId, data.paymentmode, data.producttype
+        )
+    except RuntimeError as e:
+        logger.error("PayU not configured: %s", e)
+        raise ValidationError(str(e))
+    return PayUTransactionResponse(command="check_bqr_txn_status", response=result)
+
+
+@router.post(
+    "/cancel",
+    response_model=PayUTransactionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Cancel QR Transaction",
+    description="Cancel an in-progress QR transaction (cancel_qr_payment).",
+)
+async def cancel_qr_transaction(
+    data: CancelQRTransactionRequest,
+    merchant: Merchant = Depends(get_current_merchant),
+):
+    """Cancel an in-progress QR transaction."""
+    try:
+        result = await payu_txn_service.cancel_qr_transaction(data.transactionId, data.product_type)
+    except RuntimeError as e:
+        logger.error("PayU not configured: %s", e)
+        raise ValidationError(str(e))
+    return PayUTransactionResponse(command="cancel_qr_payment", response=result)
