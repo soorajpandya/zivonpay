@@ -698,6 +698,24 @@ const order = await res.json();</pre>
 )
 order = resp.json()</pre>
   </div>
+
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "entity": "order",
+  "amount": 50000,
+  "amount_paid": 50000,
+  "amount_due": 0,
+  "currency": "INR",
+  "receipt": "rcpt_001",
+  "status": "paid",
+  "attempts": 1,
+  "notes": {{}},
+  "created_at": 1709049451
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -800,6 +818,19 @@ payment = resp.json()</pre>
     <button class="copy-btn" onclick="copyCode(this)">Copy</button>
     <pre id="list-pay-curl">curl "https://api.zivonpay.com/v1/payments?skip=0&limit=20" \\
   -u "zp_test_yourKeyId:zp_test_yourKeySecret"</pre>
+  </div>
+
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "entity": "list",
+  "count": 2,
+  "data": [
+    {{ "id": "660e...", "entity": "payment", "amount": 50000, "status": "captured", "payer_vpa": "user@upi" }},
+    {{ "id": "770e...", "entity": "payment", "amount": 1000, "status": "failed", "error_code": "BAD_REQUEST" }}
+  ]
+}}</pre>
   </div>
 </div>
 </section>
@@ -918,6 +949,23 @@ intent = resp.json()</pre>
     <pre id="get-intent-curl">curl https://api.zivonpay.com/v1/payment-intent/pi_a1b2c3d4e5f6 \\
   -u "zp_test_yourKeyId:zp_test_yourKeySecret"</pre>
   </div>
+
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "payment_intent_id": "pi_a1b2c3d4e5f6",
+  "payment_link": "https://api.zivonpay.com/link/pi_a1b2c3d4e5f6?token=eyJ...",
+  "amount": 100000,
+  "currency": "INR",
+  "order_id": "ORD_789",
+  "intent_status": "created",
+  "expires_at": "2026-04-10T15:30:00Z",
+  "created_at": 1709049451,
+  "paid_at": null
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -935,6 +983,19 @@ intent = resp.json()</pre>
     <button class="copy-btn" onclick="copyCode(this)">Copy</button>
     <pre id="list-intent-curl">curl "https://api.zivonpay.com/v1/payment-intent?skip=0&limit=20" \\
   -u "zp_test_yourKeyId:zp_test_yourKeySecret"</pre>
+  </div>
+
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "entity": "list",
+  "count": 2,
+  "data": [
+    {{ "payment_intent_id": "pi_a1b2c3d4e5f6", "amount": 100000, "intent_status": "paid", "order_id": "ORD_789" }},
+    {{ "payment_intent_id": "pi_9f8e7d6c5b4a", "amount": 25000, "intent_status": "created", "order_id": "ORD_790" }}
+  ]
+}}</pre>
   </div>
 </div>
 </section>
@@ -1164,6 +1225,15 @@ intent = resp.json()</pre>
   -H "Content-Type: application/json" \\
   -d '{{ "transaction_ids": ["intent_001", "intent_002"] }}'</pre>
   </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "command": "expire_intent_link",
+  "response": {{ "status": "success", "message": "2 out of 2 intent links expired" }}
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -1218,6 +1288,15 @@ intent = resp.json()</pre>
   -H "Content-Type: application/json" \\
   -d '{{ "merchantVpa": "yourqr.merchant@indus", "instaProduct": "qr" }}'</pre>
   </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "command": "expire_insta_account",
+  "response": {{ "status": "success", "message": "VPA deactivated successfully" }}
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -1240,6 +1319,20 @@ intent = resp.json()</pre>
   -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
   -H "Content-Type: application/json" \\
   -d '{{ "transactionId": "bqr_001", "transactionAmount": "100.00", "outputType": "string" }}'</pre>
+  </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "command": "generate_dynamic_bharat_qr",
+  "response": {{
+    "status": "success",
+    "qrId": "BQR9B729",
+    "qrString": "upi://pay?pa=...&am=100.00&cu=INR",
+    "merchantVpa": "testqr.6879.prod4@indus"
+  }}
+}}</pre>
   </div>
 </div>
 </section>
@@ -1272,6 +1365,15 @@ intent = resp.json()</pre>
     "phone": "9999999999"
   }}'</pre>
   </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "txnid": "pay_a1b2c3d4e5f6",
+  "response": {{ "status": "success", "message": "Payment initiated", "mihpayid": "403993715535965242" }}
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -1295,6 +1397,20 @@ intent = resp.json()</pre>
   -H "Content-Type: application/json" \\
   -d '{{ "transactionId": "inv_001", "transactionAmount": "100.00", "outputType": "string" }}'</pre>
   </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "command": "generate_invoice_qr",
+  "response": {{
+    "status": "success",
+    "payuId": "13863413996",
+    "qrString": "upi://pay?pa=...&am=100.00&cu=INR",
+    "qrImage": "data:image/png;base64,..."
+  }}
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -1316,6 +1432,15 @@ intent = resp.json()</pre>
   -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
   -H "Content-Type: application/json" \\
   -d '{{ "payu_id": "13863413996", "phone": "9833208174" }}'</pre>
+  </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "command": "send_sdk_message",
+  "response": {{ "status": "success", "message": "SMS sent successfully" }}
+}}</pre>
   </div>
 </div>
 </section>
@@ -1339,6 +1464,22 @@ intent = resp.json()</pre>
   -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
   -H "Content-Type: application/json" \\
   -d '{{ "transactionId": "bqr_001", "paymentmode": "UPI", "producttype": "DBQR" }}'</pre>
+  </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "command": "check_bqr_txn_status",
+  "response": {{
+    "status": "success",
+    "transactionId": "bqr_001",
+    "mihpayid": "403993715535965242",
+    "txnStatus": "success",
+    "amount": "100.00",
+    "mode": "UPI"
+  }}
+}}</pre>
   </div>
 </div>
 </section>
@@ -1588,6 +1729,21 @@ intent = resp.json()</pre>
     ]
   }}'</pre>
   </div>
+
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": 0,
+  "msg": "Batch accepted for processing",
+  "data": {{
+    "batchId": "BATCH123456",
+    "transfers": [
+      {{ "merchantRefId": "PAYOUT_001", "transferStatus": "QUEUED", "payuRefId": "PYU987654" }}
+    ]
+  }}
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -1614,6 +1770,25 @@ intent = resp.json()</pre>
   -H "Content-Type: application/json" \\
   -d '{{ "merchantRefId": "PAYOUT_001" }}'</pre>
   </div>
+
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": 0,
+  "msg": "Transfer details fetched",
+  "data": [
+    {{
+      "merchantRefId": "PAYOUT_001",
+      "payuRefId": "PYU987654",
+      "amount": 100.00,
+      "paymentType": "UPI",
+      "transferStatus": "SUCCESS",
+      "utr": "UTR1234567890"
+    }}
+  ]
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -1622,7 +1797,28 @@ intent = resp.json()</pre>
 <div class="endpoint">
   <span class="method method-post">POST</span>
   <span class="ep-url">/v1/payu-payout/transfers/cancel</span>
-  <p class="ep-desc">Cancel a transfer while it is still <code>QUEUED</code>/<code>SCHEDULED</code>. Body: <code>{{ "merchantRefId": "PAYOUT_001" }}</code>.</p>
+  <p class="ep-desc">Cancel a transfer while it is still <code>QUEUED</code>/<code>SCHEDULED</code>.</p>
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>merchantRefId</code></td><td class="type">string</td><td class="req">Yes</td><td>Reference ID of the transfer to cancel</td></tr>
+  </table>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-payout/transfers/cancel \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{ "merchantRefId": "PAYOUT_001" }}'</pre>
+  </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": 0,
+  "msg": "Transfer cancelled successfully",
+  "data": {{ "merchantRefId": "PAYOUT_001", "transferStatus": "CANCELLED" }}
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -1631,7 +1827,29 @@ intent = resp.json()</pre>
 <div class="endpoint">
   <span class="method method-post">POST</span>
   <span class="ep-url">/v1/payu-payout/queue-flag</span>
-  <p class="ep-desc">Control whether transactions queue on insufficient balance. Body: <code>{{ "queueTxn": false, "configMerchantId": "optional" }}</code>.</p>
+  <p class="ep-desc">Control whether transactions queue on insufficient balance.</p>
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>queueTxn</code></td><td class="type">boolean</td><td class="req">Yes</td><td>Whether to queue transactions on insufficient balance</td></tr>
+    <tr><td><code>configMerchantId</code></td><td class="type">string</td><td class="opt">No</td><td>Sub-merchant id to apply the flag to</td></tr>
+  </table>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-payout/queue-flag \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{ "queueTxn": false }}'</pre>
+  </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": 0,
+  "msg": "Queue flag updated successfully",
+  "data": {{ "queueTxn": false }}
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -1650,6 +1868,33 @@ intent = resp.json()</pre>
     <tr><td><code>beneName</code></td><td class="type">string</td><td class="opt">No</td><td>Expected name (with <code>nameMatching</code>)</td></tr>
     <tr><td><code>validateIfsc</code> / <code>nameMatching</code></td><td class="type">boolean</td><td class="opt">No</td><td>Verification flags</td></tr>
   </table>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-payout/verify-account \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{
+    "accountNumber": "1234567890",
+    "ifscCode": "HDFC0004392",
+    "merchantRefId": "VERIFY_001",
+    "beneName": "John Doe",
+    "nameMatching": true
+  }}'</pre>
+  </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": 0,
+  "msg": "Account verified successfully",
+  "data": {{
+    "accountExists": "YES",
+    "nameAtBank": "JOHN DOE",
+    "nameMatchScore": "100",
+    "merchantRefId": "VERIFY_001"
+  }}
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -1659,6 +1904,20 @@ intent = resp.json()</pre>
   <span class="method method-get">GET</span>
   <span class="ep-url">/v1/payu-payout/validate-vpa?vpa=name@bank</span>
   <p class="ep-desc">Validate a UPI VPA before initiating a UPI payout. Returns the registered name if valid.</p>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl "https://api.zivonpay.com/v1/payu-payout/validate-vpa?vpa=payee@okhdfcbank" \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret"</pre>
+  </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": 0,
+  "msg": "VPA is valid",
+  "data": {{ "vpa": "payee@okhdfcbank", "isVpaValid": true, "payeeName": "JOHN DOE" }}
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -1668,6 +1927,27 @@ intent = resp.json()</pre>
   <span class="method method-get">GET</span>
   <span class="ep-url">/v1/payu-payout/ifsc/{{ifsc}}</span>
   <p class="ep-desc">Fetch bank/branch details for an IFSC code, e.g. <code>/v1/payu-payout/ifsc/HDFC0004392</code>.</p>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl https://api.zivonpay.com/v1/payu-payout/ifsc/HDFC0004392 \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret"</pre>
+  </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": 0,
+  "msg": "IFSC details fetched",
+  "data": {{
+    "ifsc": "HDFC0004392",
+    "bank": "HDFC Bank",
+    "branch": "Mumbai Main",
+    "city": "MUMBAI",
+    "state": "MAHARASHTRA",
+    "micr": "400240015"
+  }}
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -1685,11 +1965,58 @@ intent = resp.json()</pre>
     <tr><td><code>custMobile</code> / <code>custEmail</code></td><td class="type">string</td><td class="opt">Cond.</td><td>At least one required</td></tr>
     <tr><td><code>custName</code> / <code>description</code> / <code>expiryDate</code></td><td class="type">string</td><td class="opt">No</td><td>Optional metadata (expiry default 7 days)</td></tr>
   </table>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-payout/smart-send \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{
+    "amount": "100.00",
+    "merchantRefId": "SMART_001",
+    "custMobile": "9999999999",
+    "custName": "John Doe",
+    "description": "Refund payout"
+  }}'</pre>
+  </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": 0,
+  "msg": "Smart send link created",
+  "data": {{
+    "merchantRefId": "SMART_001",
+    "smartSendLink": "https://pay.payu.in/s/abcd1234",
+    "linkStatus": "ACTIVE",
+    "expiryDate": "2026-06-18"
+  }}
+}}</pre>
+  </div>
 </div>
 <div class="endpoint">
   <span class="method method-get">GET</span>
   <span class="ep-url">/v1/payu-payout/smart-send/details?merchantRefId=...</span>
   <p class="ep-desc">Fetch the status/details of a Smart Send link by reference ID.</p>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl "https://api.zivonpay.com/v1/payu-payout/smart-send/details?merchantRefId=SMART_001" \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret"</pre>
+  </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": 0,
+  "msg": "Smart send details fetched",
+  "data": {{
+    "merchantRefId": "SMART_001",
+    "amount": "100.00",
+    "linkStatus": "CLAIMED",
+    "transferStatus": "SUCCESS",
+    "utr": "UTR1234567890"
+  }}
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -1705,16 +2032,59 @@ intent = resp.json()</pre>
   -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
   -F "file=@bulk_smart_send.xlsx"</pre>
   </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": 0,
+  "msg": "File uploaded successfully",
+  "data": {{ "fileId": "FILE123456", "fileName": "bulk_smart_send.xlsx", "totalRecords": 25 }}
+}}</pre>
+  </div>
 </div>
 <div class="endpoint">
   <span class="method method-put">PUT</span>
   <span class="ep-url">/v1/payu-payout/smart-send/bulk-process/{{file_id}}</span>
   <p class="ep-desc">Process a previously uploaded bulk file by its <code>fileId</code>.</p>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X PUT https://api.zivonpay.com/v1/payu-payout/smart-send/bulk-process/FILE123456 \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret"</pre>
+  </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": 0,
+  "msg": "File queued for processing",
+  "data": {{ "fileId": "FILE123456", "processingStatus": "IN_PROGRESS" }}
+}}</pre>
+  </div>
 </div>
 <div class="endpoint">
   <span class="method method-get">GET</span>
   <span class="ep-url">/v1/payu-payout/bulk-upload/status/{{file_id}}</span>
   <p class="ep-desc">Get the upload/processing status of a bulk file.</p>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl https://api.zivonpay.com/v1/payu-payout/bulk-upload/status/FILE123456 \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret"</pre>
+  </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": 0,
+  "msg": "File status fetched",
+  "data": {{
+    "fileId": "FILE123456",
+    "processingStatus": "COMPLETED",
+    "totalRecords": 25,
+    "successCount": 24,
+    "failedCount": 1
+  }}
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -1732,11 +2102,54 @@ intent = resp.json()</pre>
     <tr><td><code>vpa</code></td><td class="type">string</td><td>UPI destination</td></tr>
     <tr><td><code>beneCode</code></td><td class="type">string</td><td>Optional merchant beneficiary code</td></tr>
   </table>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-payout/beneficiaries \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{
+    "name": "John Doe",
+    "email": "john@example.com",
+    "mobile": "9999999999",
+    "accountNo": "1234567890",
+    "ifsc": "HDFC0004392",
+    "beneCode": "BENE_001"
+  }}'</pre>
+  </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": 0,
+  "msg": "Beneficiary registered successfully",
+  "data": {{ "beneficiaryId": "BEN987654", "beneCode": "BENE_001", "name": "John Doe" }}
+}}</pre>
+  </div>
 </div>
 <div class="endpoint">
   <span class="method method-get">GET</span>
   <span class="ep-url">/v1/payu-payout/beneficiaries/{{beneficiary_id}}</span>
   <p class="ep-desc">Fetch a registered beneficiary by its PayU ID.</p>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl https://api.zivonpay.com/v1/payu-payout/beneficiaries/BEN987654 \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret"</pre>
+  </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": 0,
+  "msg": "Beneficiary details fetched",
+  "data": {{
+    "beneficiaryId": "BEN987654",
+    "name": "John Doe",
+    "accountNo": "1234567890",
+    "ifsc": "HDFC0004392",
+    "vpa": null
+  }}
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -1762,6 +2175,15 @@ intent = resp.json()</pre>
       }}
     ]
   }}'</pre>
+  </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": 0,
+  "msg": "Webhook configured successfully",
+  "data": {{ "webhook": "default", "url": "https://yourapp.com/payouts/webhook" }}
+}}</pre>
   </div>
 </div>
 </section>
@@ -1811,6 +2233,16 @@ intent = resp.json()</pre>
   -H "Content-Type: application/json" \\
   -d '{{ "scope": "refer_child_merchant" }}'</pre>
   </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "scope": "refer_child_merchant"
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -1848,6 +2280,19 @@ intent = resp.json()</pre>
     "business_entity_id": 14
   }}'</pre>
   </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "data": {{
+    "product_account_uuid": "11ec-29e1-9b1030da-a0b8-02053299b2da",
+    "merchant_id": "39032915",
+    "name": "Gauri Gupta",
+    "status": "ONBOARDED"
+  }}
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -1870,6 +2315,19 @@ intent = resp.json()</pre>
     }}
   }}'</pre>
   </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "data": {{
+    "product_account_uuid": "11ec-29e1-9b1030da-a0b8-02053299b2da",
+    "bank_account_number": "123456789",
+    "ifsc_code": "SBIN0010650",
+    "verification_status": "PENDING"
+  }}
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -1879,6 +2337,28 @@ intent = resp.json()</pre>
   <span class="method method-put">PUT</span>
   <span class="ep-url">/v1/payu-aggregator/child-merchants/{{product_account_uuid}}</span>
   <p class="ep-desc">Update arbitrary child-merchant fields (name, mobile, business fields, bank_detail, etc.). Any PayU <code>product_account</code> fields are passed through.</p>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X PUT https://api.zivonpay.com/v1/payu-aggregator/child-merchants/11ec-29e1-9b1030da-a0b8-02053299b2da \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{
+    "name": "Gauri Gupta Enterprises",
+    "mobile": "7310000002"
+  }}'</pre>
+  </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "data": {{
+    "product_account_uuid": "11ec-29e1-9b1030da-a0b8-02053299b2da",
+    "name": "Gauri Gupta Enterprises",
+    "mobile": "7310000002"
+  }}
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -1893,6 +2373,17 @@ intent = resp.json()</pre>
     <pre>curl https://api.zivonpay.com/v1/payu-aggregator/child-merchants \\
   -u "zp_live_yourKeyId:zp_live_yourKeySecret"</pre>
   </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "data": [
+    {{ "product_account_uuid": "11ec-29e1-9b1030da-a0b8-02053299b2da", "merchant_id": "39032915", "name": "Gauri Gupta", "status": "ACTIVE" }},
+    {{ "product_account_uuid": "11ec-2a01-7c4421ab-bf32-7711aa90c1de", "merchant_id": "39032916", "name": "Acme Store", "status": "ACTIVE" }}
+  ]
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -1906,6 +2397,22 @@ intent = resp.json()</pre>
     <button class="copy-btn" onclick="copyCode(this)">Copy</button>
     <pre>curl "https://api.zivonpay.com/v1/payu-aggregator/child-merchants/search?search_term=email&amp;search_text=child@example.com" \\
   -u "zp_live_yourKeyId:zp_live_yourKeySecret"</pre>
+  </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "data": [
+    {{
+      "product_account_uuid": "11ec-29e1-9b1030da-a0b8-02053299b2da",
+      "merchant_id": "39032915",
+      "name": "Gauri Gupta",
+      "email": "child@example.com",
+      "status": "ACTIVE"
+    }}
+  ]
+}}</pre>
   </div>
 </div>
 </section>
@@ -1936,6 +2443,17 @@ intent = resp.json()</pre>
     }}
   }}'</pre>
   </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "txnid": "pay_a1b2c3d4e5f6",
+  "action_url": "https://secure.payu.in/_payment",
+  "fields": {{ "key": "...", "txnid": "...", "amount": "100.00", "splitRequest": "{{...}}", "hash": "<sha512>" }},
+  "form_html": "<!DOCTYPE html>... self-submitting form ..."
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -1964,6 +2482,17 @@ intent = resp.json()</pre>
       }}
     }}
   }}'</pre>
+  </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "txnid": "pay_a1b2c3d4e5f6",
+  "action_url": "https://secure.payu.in/_payment",
+  "fields": {{ "key": "...", "txnid": "...", "amount": "100.00", "splitRequest": "{{...}}", "hash": "<sha512>" }},
+  "form_html": "<!DOCTYPE html>... self-submitting form ..."
+}}</pre>
   </div>
 </div>
 </section>
@@ -1995,6 +2524,19 @@ intent = resp.json()</pre>
     }}
   }}'</pre>
   </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "command": "payment_split",
+  "response": {{
+    "status": 1,
+    "msg": "Transaction split successfully",
+    "mihpayid": "403993715525003544"
+  }}
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -2018,6 +2560,19 @@ intent = resp.json()</pre>
     }}
   }}'</pre>
   </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "command": "payment_split",
+  "response": {{
+    "status": 1,
+    "msg": "Transaction split successfully",
+    "mihpayid": "403993715525003544"
+  }}
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -2033,6 +2588,22 @@ intent = resp.json()</pre>
   -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
   -H "Content-Type: application/json" \\
   -d '{{ "payu_id": "403993715532325577" }}'</pre>
+  </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "command": "get_split_info",
+  "response": {{
+    "status": 1,
+    "msg": "Split info fetched",
+    "splitInfo": {{
+      "childKey1": {{ "aggregatorSubTxnId": "Child101", "aggregatorSubAmt": "50", "settlementStatus": "BLOCKED" }},
+      "childKey2": {{ "aggregatorSubTxnId": "Child202", "aggregatorSubAmt": "50", "settlementStatus": "RELEASED" }}
+    }}
+  }}
+}}</pre>
   </div>
 </div>
 </section>
@@ -2061,6 +2632,29 @@ intent = resp.json()</pre>
     "page_size": 100
   }}'</pre>
   </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "command": "get_aggregator_transactions",
+  "response": {{
+    "status": 1,
+    "msg": "Transactions fetched",
+    "Transaction_details": [
+      {{
+        "mihpayid": "403993715525003544",
+        "txnid": "pay_a1b2c3d4e5f6",
+        "amount": "100.00",
+        "status": "success",
+        "splitDetails": [
+          {{ "childMerchantKey": "childKey1", "aggregatorSubAmt": "50", "settlementStatus": "BLOCKED" }}
+        ]
+      }}
+    ]
+  }}
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -2080,6 +2674,27 @@ intent = resp.json()</pre>
     "date_to": "2026-06-01 23:59",
     "merchant_key": "childKey1"
   }}'</pre>
+  </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "command": "get_split_transactions",
+  "response": {{
+    "status": 1,
+    "msg": "Split transactions fetched",
+    "Transaction_details": [
+      {{
+        "parentMihpayid": "403993715525003544",
+        "childMerchantKey": "childKey1",
+        "aggregatorSubTxnId": "Child101",
+        "aggregatorSubAmt": "50",
+        "settlementStatus": "RELEASED"
+      }}
+    ]
+  }}
+}}</pre>
   </div>
 </div>
 </section>
@@ -2106,6 +2721,19 @@ intent = resp.json()</pre>
     "child_mid": "39032915"
   }}'</pre>
   </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "command": "release_settlement",
+  "response": {{
+    "status": 1,
+    "msg": "Settlement released successfully",
+    "payu_id": "412345678912384152"
+  }}
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -2120,6 +2748,27 @@ intent = resp.json()</pre>
     <pre>curl "https://api.zivonpay.com/v1/payu-aggregator/settlement/range?dateFrom=2026-06-01&amp;dateTo=2026-06-01&amp;page=1&amp;pageSize=100" \\
   -u "zp_live_yourKeyId:zp_live_yourKeySecret"</pre>
   </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "SUCCESS",
+  "message": "Settlement details fetched",
+  "result": {{
+    "totalRecords": 1,
+    "settlements": [
+      {{
+        "settlementId": "STL123456",
+        "settlementDate": "2026-06-01",
+        "merchantId": "13376506",
+        "grossAmount": "100.00",
+        "netAmount": "97.50",
+        "utr": "UTR1234567890"
+      }}
+    ]
+  }}
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -2133,6 +2782,25 @@ intent = resp.json()</pre>
     <button class="copy-btn" onclick="copyCode(this)">Copy</button>
     <pre>curl "https://api.zivonpay.com/v1/payu-aggregator/settlement/transaction-details?merchantTransactionId=pay_a1b2c3&amp;mid=13376506" \\
   -u "zp_live_yourKeyId:zp_live_yourKeySecret"</pre>
+  </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "SUCCESS",
+  "message": "Transaction settlement details fetched",
+  "result": {{
+    "merchantTransactionId": "pay_a1b2c3",
+    "mihpayid": "403993715525003544",
+    "settlementId": "STL123456",
+    "settlementDate": "2026-06-01",
+    "grossAmount": "100.00",
+    "commission": "2.00",
+    "gst": "0.36",
+    "netAmount": "97.64",
+    "utr": "UTR1234567890"
+  }}
+}}</pre>
   </div>
 </div>
 </section>
@@ -2158,6 +2826,20 @@ intent = resp.json()</pre>
     }}
   }}'</pre>
   </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "command": "cancel_refund_transaction",
+  "response": {{
+    "status": 1,
+    "msg": "Refund Request Queued",
+    "request_id": "1234567",
+    "mihpayid": "403993715525003544"
+  }}
+}}</pre>
+  </div>
 </div>
 </section>
 
@@ -2173,6 +2855,21 @@ intent = resp.json()</pre>
   -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
   -H "Content-Type: application/json" \\
   -d '{{ "txnid": "pay_a1b2c3d4e5f6" }}'</pre>
+  </div>
+  <h3>Response <span class="status s2">200</span></h3>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>{{
+  "status": "success",
+  "command": "aggregator_check_action_status_txnid",
+  "response": {{
+    "status": 1,
+    "msg": "Refund status fetched",
+    "postBackData": [
+      {{ "requestId": "1234567", "refundStatus": "Success", "amount": "100.00" }}
+    ]
+  }}
+}}</pre>
   </div>
 </div>
 </section>
