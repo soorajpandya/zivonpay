@@ -5,6 +5,7 @@ Mounted at /v1/payu
 
 from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import HTMLResponse
+import json
 import logging
 
 from app.models.merchant import Merchant
@@ -61,9 +62,15 @@ async def collect_payment(
         if v
     }
 
+    # Aggregator split-during-transaction: serialize once so the exact same
+    # string is used for both the hash and the posted splitRequest field.
+    split_request = (
+        json.dumps(data.split_request, separators=(",", ":")) if data.split_request else None
+    )
+
     logger.info(
         "PayU collect payment request",
-        extra={"merchant_id": str(merchant.id), "txnid": txnid},
+        extra={"merchant_id": str(merchant.id), "txnid": txnid, "split": bool(split_request)},
     )
 
     try:
@@ -82,6 +89,7 @@ async def collect_payment(
             udf4=data.udf4,
             udf5=data.udf5,
             extra=extra or None,
+            split_request=split_request,
         )
     except ValueError as e:
         # e.g. invalid amount

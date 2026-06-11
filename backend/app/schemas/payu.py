@@ -7,7 +7,7 @@ redirects). The salt and plain hash string are never returned to the client.
 """
 
 from pydantic import BaseModel, Field, validator
-from typing import Optional, Dict
+from typing import Any, Dict, Optional
 
 
 class CollectPaymentRequest(BaseModel):
@@ -50,6 +50,19 @@ class CollectPaymentRequest(BaseModel):
     pg: Optional[str] = Field(default=None, description="Payment category, e.g. UPI, CC, NB")
     bankcode: Optional[str] = Field(default=None, description="Bank/instrument code")
     vpa: Optional[str] = Field(default=None, description="UPI VPA for UPI collect")
+
+    # Aggregator / Marketplace "Split During Transaction".
+    # When provided, the split is created with the parent payment. The object is
+    # serialized and included both in the hash and the posted splitRequest field.
+    # Shape: {"type": "absolute|percentage",
+    #         "splitInfo": {"<childKey>": {"aggregatorSubTxnId": "...",
+    #                                       "aggregatorSubAmt": "...",
+    #                                       "aggregatorCharges": "..."}}}
+    split_request: Optional[Dict[str, Any]] = Field(
+        default=None,
+        alias="splitRequest",
+        description="Optional split settlement details (Aggregator split during transaction).",
+    )
 
     @validator("txnid")
     def strip_txnid(cls, v):

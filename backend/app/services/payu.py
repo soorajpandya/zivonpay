@@ -129,6 +129,48 @@ def generate_intent_hash(
     return _sha512(hash_string)
 
 
+def generate_split_payment_hash(
+    params: Dict[str, str],
+    salt: str,
+    split_request: str,
+) -> str:
+    """
+    Generate the hash for a PayU _payment request that carries a ``splitRequest``
+    (Aggregator / Marketplace "Split During Transaction" flow).
+
+    The ``splitRequest`` JSON string is appended to the end of the regular
+    payment-request hash sequence:
+
+        key|txnid|amount|productinfo|firstname|email|udf1|udf2|udf3|udf4|udf5||||||SALT|splitRequest
+
+    The exact same ``split_request`` string MUST be posted as the form field so
+    the hash matches.
+
+    Args:
+        params: Dict with required keys: key, txnid, amount, productinfo,
+            firstname, email. Optional udf1..udf5.
+        salt: Your PayU merchant (parent/aggregator) salt.
+        split_request: The serialized splitRequest JSON string.
+
+    Returns:
+        Lowercase hex SHA-512 hash.
+    """
+    base = generate_payment_hash(params, salt)  # validates required params
+    # Re-derive the hash string with the salt + splitRequest suffix.
+    ordered = [
+        params["key"],
+        params["txnid"],
+        params["amount"],
+        params["productinfo"],
+        params["firstname"],
+        params["email"],
+    ]
+    ordered.extend(params.get(udf, "") or "" for udf in _UDF_FIELDS)
+    hash_string = "|".join(ordered) + "||||||" + salt + "|" + split_request
+    del base  # base computed only to validate required fields
+    return _sha512(hash_string)
+
+
 def generate_response_hash(
     params: Dict[str, str],
     salt: str,
@@ -311,6 +353,7 @@ def build_payment_request(
     udf4: str = "",
     udf5: str = "",
     extra: Optional[Dict[str, str]] = None,
+    split_request: Optional[str] = None,
 ) -> Dict[str, str]:
     """
     Build a complete, validated PayU _payment request field set (with hash).
@@ -332,6 +375,9 @@ def build_payment_request(
         furl: Failure callback URL.
         udf1..udf5: Optional user-defined fields (included in the hash).
         extra: Optional additional form fields (NOT included in the hash).
+        split_request: Optional serialized splitRequest JSON (Aggregator
+            "Split During Transaction"). When set, it is included both in the
+            hash (appended after the salt) and as a posted form field.
 
     Returns:
         Dict of form fields ready to POST to the _payment endpoint.
@@ -355,13 +401,21 @@ def build_payment_request(
         "udf5": udf5,
     }
 
+    if split_request:
+        hash_value = generate_split_payment_hash(hash_params, salt, split_request)
+    else:
+        hash_value = generate_payment_hash(hash_params, salt)
+
     fields = {
         **hash_params,
         "phone": phone,
         "surl": surl,
         "furl": furl,
-        "hash": generate_payment_hash(hash_params, salt),
+        "hash": hash_value,
     }
+
+    if split_request:
+        fields["splitRequest"] = split_request
 
     if extra:
         fields.update(extra)
@@ -412,6 +466,7 @@ def build_collect_payment(
     udf4: str = "",
     udf5: str = "",
     extra: Optional[Dict[str, str]] = None,
+    split_request: Optional[str] = None,
 ) -> Dict[str, object]:
     """
     Assemble a complete, signed PayU collect-payment request using credentials
@@ -463,6 +518,7 @@ def build_collect_payment(
         udf4=udf4,
         udf5=udf5,
         extra=extra,
+        split_request=split_request,
     )
 
     action_url = payment_endpoint(settings.PAYU_ENVIRONMENT)

@@ -3,7 +3,7 @@ API v1 Router - Aggregates all v1 endpoints
 """
 
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, orders, payments, audit, logs, payment_intent, payu, payu_intent, payu_qr, payu_payout
+from app.api.v1.endpoints import auth, orders, payments, audit, logs, payment_intent, payu, payu_intent, payu_qr, payu_payout, payu_aggregator
 
 api_router = APIRouter()
 
@@ -18,3 +18,4 @@ api_router.include_router(payu.router, prefix="/payu", tags=["PayU"])
 api_router.include_router(payu_intent.router, prefix="/payu-intent", tags=["PayU UPI Intent"])
 api_router.include_router(payu_qr.router, prefix="/payu-qr", tags=["PayU Dynamic QR"])
 api_router.include_router(payu_payout.router, prefix="/payu-payout", tags=["PayU Payouts"])
+api_router.include_router(payu_aggregator.router, prefix="/payu-aggregator", tags=["PayU Aggregator / Marketplace"])

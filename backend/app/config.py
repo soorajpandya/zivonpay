@@ -81,6 +81,20 @@ class Settings(BaseSettings):
     PAYU_PAYOUT_MERCHANT_ID: Optional[str] = None
     PAYU_PAYOUT_TIMEOUT: int = 30
 
+    # PayU Aggregator / Marketplace Settlement Solution
+    # Onboarding child merchants uses an OAuth client token from PayU's Hub
+    # (scope refer_child_merchant / fetch_child_merchants). Split settlement
+    # commands (payment_split / release_settlement / get_aggregator_transactions)
+    # reuse the regular PAYU_MERCHANT_KEY / PAYU_SALT on the postservice host.
+    PAYU_AGG_ENVIRONMENT: str = Field(default="test", pattern="^(test|production)$")
+    PAYU_AGG_CLIENT_ID: Optional[str] = None
+    PAYU_AGG_CLIENT_SECRET: Optional[str] = None
+    # Parent (aggregator) merchant MID and UUID used when onboarding/listing
+    # child merchants.
+    PAYU_AGG_PARENT_MID: Optional[str] = None
+    PAYU_AGG_PARENT_UUID: Optional[str] = None
+    PAYU_AGG_TIMEOUT: int = 30
+
     # Security
     JWT_SECRET_KEY: str = Field(default_factory=lambda: secrets.token_urlsafe(32))
     JWT_ALGORITHM: str = "HS256"

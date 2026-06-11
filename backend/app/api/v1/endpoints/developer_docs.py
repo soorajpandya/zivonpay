@@ -208,6 +208,19 @@ p{{margin-bottom:14px;color:{_MUTED};font-size:15px}}
   </div>
 
   <div class="nav-group">
+    <div class="nav-label">PayU Aggregator / Marketplace</div>
+    <a class="nav-link" href="#agg-overview">Overview</a>
+    <a class="nav-link" href="#agg-token">Get Client Token</a>
+    <a class="nav-link" href="#agg-create-child">Create Child Merchant</a>
+    <a class="nav-link" href="#agg-bank">Update Bank Details</a>
+    <a class="nav-link" href="#agg-list">Fetch Child Merchants</a>
+    <a class="nav-link" href="#agg-split-during">Split During Transaction</a>
+    <a class="nav-link" href="#agg-split">Split After Transaction</a>
+    <a class="nav-link" href="#agg-transactions">Aggregator Transactions</a>
+    <a class="nav-link" href="#agg-release">Release Settlement</a>
+  </div>
+
+  <div class="nav-group">
     <div class="nav-label">Webhooks</div>
     <a class="nav-link" href="#webhooks">Webhook Events</a>
     <a class="nav-link" href="#webhook-verification">Webhook Verification</a>
@@ -1738,6 +1751,224 @@ intent = resp.json()</pre>
         }}
       }}
     ]
+  }}'</pre>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════ PAYU AGGREGATOR / MARKETPLACE ═══════════ -->
+
+<section id="agg-overview">
+<h2>PayU Aggregator / Marketplace Settlement</h2>
+<p>The Aggregator (Marketplace) solution lets you (the <strong>parent / aggregator merchant</strong>) collect a single customer payment and split the settlement across multiple <strong>child merchants</strong> (sub-sellers). Your commission per sub-transaction is the <code>aggregatorCharges</code>; the amount settled to each child is the <code>aggregatorSubAmt</code>.</p>
+<p>There are two integration paths:</p>
+<ul>
+  <li><strong>Child merchant onboarding</strong> — create child merchants and add their settlement bank details (OAuth client token from PayU's Hub, scope <code>refer_child_merchant</code> / <code>fetch_child_merchants</code>).</li>
+  <li><strong>Split settlements</strong> — split a payment either <em>during</em> the transaction (<code>splitRequest</code> on Collect) or <em>after</em> it is captured (<code>payment_split</code>), then release each child sub-payment with <code>release_settlement</code>.</li>
+</ul>
+<p class="note">All ZivonPay endpoints below require merchant auth (HTTP Basic <code>key_id:key_secret</code>). The aggregator OAuth client credentials and parent MID/UUID are configured server-side; the salt and client secret are never exposed.</p>
+</section>
+
+<section id="agg-token">
+<h2>Get Client Token</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-aggregator/token</span>
+  <p class="ep-desc">Generate an OAuth client token from PayU's Hub. Mainly for verification — onboarding endpoints fetch &amp; cache tokens automatically.</p>
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>scope</code></td><td class="type">string</td><td><code>refer_child_merchant</code> (onboarding) or <code>fetch_child_merchants</code> (listing)</td></tr>
+  </table>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-aggregator/token \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{ "scope": "refer_child_merchant" }}'</pre>
+  </div>
+</div>
+</section>
+
+<section id="agg-create-child">
+<h2>Create / Onboard Child Merchant</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-aggregator/child-merchants</span>
+  <p class="ep-desc">Onboard a child (sub-seller) merchant under the aggregator/parent MID. After creation, add bank details (next endpoint).</p>
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>product</code></td><td class="type">string</td><td>Product, e.g. <code>PayUbiz</code></td></tr>
+    <tr><td><code>name</code></td><td class="type">string</td><td>Display name of the child merchant</td></tr>
+    <tr><td><code>email</code> / <code>mobile</code></td><td class="type">string</td><td>Child merchant contact details</td></tr>
+    <tr><td><code>merchant_type</code></td><td class="type">string</td><td>Must be <code>aggregator</code></td></tr>
+    <tr><td><code>pancard_number</code> / <code>pancard_name</code></td><td class="type">string</td><td>PAN details of the child merchant</td></tr>
+    <tr><td><code>business_entity_id</code></td><td class="type">int</td><td>Business entity id (1-17, per PayU mapping; 14 = Individual)</td></tr>
+    <tr><td><code>aggregator_parent_mid</code></td><td class="type">string</td><td>Parent MID (defaults to the configured aggregator MID)</td></tr>
+    <tr><td><code>business_category_id</code>, <code>business_sub_category_id</code>, <code>monthly_expected_volume</code>, <code>business_name</code>, <code>gst_number</code></td><td class="type">misc</td><td>Additional PayU fields passed through</td></tr>
+  </table>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-aggregator/child-merchants \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{
+    "product": "PayUbiz",
+    "name": "Gauri Gupta",
+    "email": "child.merchant@example.com",
+    "mobile": "7310000001",
+    "merchant_type": "aggregator",
+    "pancard_number": "CZMPG3718G",
+    "pancard_name": "GAURI GUPTA",
+    "business_entity_id": 14
+  }}'</pre>
+  </div>
+</div>
+</section>
+
+<section id="agg-bank">
+<h2>Update Child Merchant Bank Details</h2>
+<div class="endpoint">
+  <span class="method method-put">PUT</span>
+  <span class="ep-url">/v1/payu-aggregator/child-merchants/{{product_account_uuid}}/bank-details</span>
+  <p class="ep-desc">Add/update the settlement bank account for a child merchant (use the <code>uuid</code> returned at creation).</p>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X PUT https://api.zivonpay.com/v1/payu-aggregator/child-merchants/11ec-29e1-9b1030da-a0b8-02053299b2da/bank-details \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{
+    "bank_detail": {{
+      "bank_account_number": "123456789",
+      "ifsc_code": "SBIN0010650",
+      "holder_name": "ABC"
+    }}
+  }}'</pre>
+  </div>
+</div>
+</section>
+
+<section id="agg-list">
+<h2>Fetch Child Merchants (Sub Account Listing)</h2>
+<div class="endpoint">
+  <span class="method method-get">GET</span>
+  <span class="ep-url">/v1/payu-aggregator/child-merchants</span>
+  <p class="ep-desc">List all child merchants linked to the parent/aggregator merchant. Uses the configured parent UUID unless <code>parent_uuid</code> is supplied as a query param.</p>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl https://api.zivonpay.com/v1/payu-aggregator/child-merchants \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret"</pre>
+  </div>
+</div>
+</section>
+
+<section id="agg-split-during">
+<h2>Split During Transaction</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu/collect</span>
+  <p class="ep-desc">Add an optional <code>splitRequest</code> object to the regular Collect request to split the payment at the time of the transaction. ZivonPay folds <code>splitRequest</code> into the hash (<code>...|SALT|splitRequest</code>) and posts it with the payment. For <code>absolute</code> the sub-amounts must sum to the transaction amount; for <code>percentage</code> they must sum to 100.</p>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu/collect \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{
+    "amount": "100.00",
+    "productinfo": "Order #1234",
+    "firstname": "John",
+    "email": "john@example.com",
+    "phone": "9999999999",
+    "splitRequest": {{
+      "type": "absolute",
+      "splitInfo": {{
+        "childKey1": {{ "aggregatorSubTxnId": "sub-1", "aggregatorSubAmt": "60", "aggregatorCharges": "5" }},
+        "childKey2": {{ "aggregatorSubTxnId": "sub-2", "aggregatorSubAmt": "40" }}
+      }}
+    }}
+  }}'</pre>
+  </div>
+</div>
+</section>
+
+<section id="agg-split">
+<h2>Split After Transaction</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-aggregator/split</span>
+  <p class="ep-desc">Split an already-captured parent transaction across child merchants (<code>payment_split</code>, api_version 7).</p>
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>payu_id</code></td><td class="type">string</td><td>PayU id (mihpayid) of the parent transaction to split</td></tr>
+    <tr><td><code>split_type</code></td><td class="type">string</td><td><code>absolute</code> or <code>percentage</code></td></tr>
+    <tr><td><code>split_info</code></td><td class="type">object</td><td>Map of child merchant key → <code>{{ aggregatorSubTxnId, aggregatorSubAmt, aggregatorCharges? }}</code></td></tr>
+  </table>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-aggregator/split \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{
+    "payu_id": "403993715525003544",
+    "split_type": "absolute",
+    "split_info": {{
+      "imAJ7I": {{ "aggregatorSubTxnId": "Child101", "aggregatorSubAmt": "50" }},
+      "qOoYIv": {{ "aggregatorSubTxnId": "Child202", "aggregatorSubAmt": "50" }}
+    }}
+  }}'</pre>
+  </div>
+</div>
+</section>
+
+<section id="agg-transactions">
+<h2>Get Aggregator / Parent Transaction Info</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-aggregator/transactions</span>
+  <p class="ep-desc">Fetch parent transactions and their split sub-transactions for a date range (<code>get_aggregator_transactions</code>).</p>
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>date_from</code> / <code>date_to</code></td><td class="type">string</td><td>Datetime range, format <code>YYYY-MM-DD HH:MM</code></td></tr>
+    <tr><td><code>page</code> / <code>page_size</code></td><td class="type">int</td><td>Pagination (defaults 1 / 100)</td></tr>
+  </table>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-aggregator/transactions \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{
+    "date_from": "2026-06-01 00:00",
+    "date_to": "2026-06-01 23:59",
+    "page": 1,
+    "page_size": 100
+  }}'</pre>
+  </div>
+</div>
+</section>
+
+<section id="agg-release">
+<h2>Release Settlement</h2>
+<div class="endpoint">
+  <span class="method method-post">POST</span>
+  <span class="ep-url">/v1/payu-aggregator/release-settlement</span>
+  <p class="ep-desc">Release a blocked child sub-payment so it settles to the child merchant (<code>release_settlement</code>). Splits stay blocked until released.</p>
+  <h3>Request Body</h3>
+  <table class="param-table">
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+    <tr><td><code>payu_id</code></td><td class="type">string</td><td>PayU id of the child sub-transaction to release</td></tr>
+    <tr><td><code>child_mid</code></td><td class="type">string</td><td>Child merchant id the sub-transaction belongs to</td></tr>
+  </table>
+  <div class="code-block">
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    <pre>curl -X POST https://api.zivonpay.com/v1/payu-aggregator/release-settlement \\
+  -u "zp_live_yourKeyId:zp_live_yourKeySecret" \\
+  -H "Content-Type: application/json" \\
+  -d '{{
+    "payu_id": "412345678912384152",
+    "child_mid": "39032915"
   }}'</pre>
   </div>
 </div>

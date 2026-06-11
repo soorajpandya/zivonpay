@@ -261,6 +261,84 @@ class PayUTransactionService:
             var1_obj["product_type"] = product_type
         return await self._run_json_command(command="cancel_qr_payment", var1_obj=var1_obj)
 
+    # ── Aggregator / Marketplace split settlements (postservice commands) ──
+
+    async def payment_split(
+        self,
+        *,
+        payu_id: str,
+        split_info: Dict[str, Any],
+        split_type: str = "absolute",
+    ) -> Dict[str, Any]:
+        """
+        Split a captured parent transaction across child merchants *after* the
+        transaction (``payment_split`` command, api_version 7).
+
+        Args:
+            payu_id: PayU id (mihpayid) of the parent transaction to split.
+            split_info: Map of child merchant key -> {aggregatorSubTxnId,
+                aggregatorSubAmt, aggregatorCharges?}. For ``absolute`` the sum
+                of aggregatorSubAmt must equal the transaction amount; for
+                ``percentage`` the percentages must sum to 100.
+            split_type: "absolute" or "percentage".
+        """
+        var1_obj = {
+            "type": split_type,
+            "payuId": payu_id,
+            "splitInfo": split_info,
+        }
+        return await self._run_json_command(
+            command="payment_split",
+            var1_obj=var1_obj,
+            extra_vars={"api_version": "7"},
+        )
+
+    async def get_aggregator_transactions(
+        self,
+        *,
+        date_from: str,
+        date_to: str,
+        page: int = 1,
+        page_size: int = 100,
+    ) -> Dict[str, Any]:
+        """
+        Fetch parent/aggregator transaction info with their split sub-txns
+        (``get_aggregator_transactions`` command).
+
+        Args:
+            date_from: Start datetime "YYYY-MM-DD HH:MM" (var1).
+            date_to: End datetime "YYYY-MM-DD HH:MM" (var2).
+            page: Page number (var3).
+            page_size: Records per page (var4).
+
+        Note: The hash is computed over key|command|var1|salt (var1 = date_from).
+        """
+        return await self._run_command(
+            command="get_aggregator_transactions",
+            var1=date_from,
+            extra_vars={
+                "var2": date_to,
+                "var3": str(page),
+                "var4": str(page_size),
+                "var5": "",
+            },
+        )
+
+    async def release_settlement(self, *, payu_id: str, child_mid: str) -> Dict[str, Any]:
+        """
+        Release a blocked child sub-payment so it settles to the child merchant
+        (``release_settlement`` command).
+
+        Args:
+            payu_id: PayU id of the (child) sub-transaction to release (var1).
+            child_mid: Child merchant id the sub-transaction belongs to (var2).
+        """
+        return await self._run_command(
+            command="release_settlement",
+            var1=payu_id,
+            extra_vars={"var2": child_mid},
+        )
+
 
 # Global service instance
 payu_txn_service = PayUTransactionService()
